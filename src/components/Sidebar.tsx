@@ -84,9 +84,9 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
   ];
 
   return (
-    <div className="w-64 bg-gray-100 border-r border-gray-300 h-screen flex flex-col">
+    <div className="w-64 bg-gray-100 border-r border-gray-300 flex flex-col">
       <div className="p-4 border-b border-gray-300">
-        <h1 className="text-lg font-semibold text-gray-800">Procs "Congeladoras"</h1>
+        <h1 className="text-lg font-semibold text-gray-800">A8 SYSTEMS</h1>
       </div>
       
       <div className="flex-1 overflow-y-auto">

@@ -1,13 +1,18 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "systema8-electron",
   "private": true,
   "version": "0.0.0",
+  "main": "out/main/main.js",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "electron-vite preview",
+    "package": "npm run build && electron-builder build --config electron-builder.json",
+    "package:win": "npm run build && electron-builder build --win --config electron-builder.json",
+    "package:mac": "npm run build && electron-builder build --mac --config electron-builder.json",
+    "package:linux": "npm run build && electron-builder build --linux --config electron-builder.json"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
@@ -20,6 +25,9 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
+    "electron": "^37.2.4",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^4.0.0",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",

@@ -1,0 +1,113 @@
+
+.App {
+  text-align: center;
+  padding: 20px;
+}
+
+.App-header {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: calc(10px + 2vmin);
+  color: #333;
+}
+
+.card {
+  background: #f9f9f9;
+  padding: 20px;
+  margin: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 600px;
+}
+
+input {
+  margin: 10px;
+  padding: 8px;
+  width: 80%;
+  max-width: 300px;
+}
+
+button {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+.error {
+  color: red;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.electron-banner {
+  background-color: #2e2e2e;
+  color: #fff;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+  border-radius: 0;
+  z-index: 1000;
+}
+
+.electron-banner p {
+  margin: 0;
+  font-weight: bold;
+}
+
+.electron-banner button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.electron-banner button:hover {
+  background-color: #45a049;
+}
+
+.message-notification {
+  background-color: #4caf50;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  z-index: 1001;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  margin: 10px 0;
+}
