@@ -2,7 +2,6 @@ import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import './App.css';
 
 function AppContent() {
   const { user } = useAuth();
@@ -12,11 +11,9 @@ function AppContent() {
 
 function App() {
   return (
-    <div className="App">
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </div>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
