@@ -98,6 +98,7 @@ export interface MenuItem {
 }
 
 export interface AuthUser {
+  id: number;
   username: string;
   role: string;
   isAuthenticated: boolean;

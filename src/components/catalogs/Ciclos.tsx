@@ -1,45 +1,104 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Printer, Trash2, Save, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit, Printer, Trash2, Save, X, LogOut } from 'lucide-react';
+import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Ciclo {
   id: number;
   año: number;
   ciclo: string;
+  status: string;
 }
 
 interface FormData {
   id: string;
   año: number;
   ciclo: string;
+  status: string;
 }
 
-const mockCiclos: Ciclo[] = [
-  { id: 1, año: 2025, ciclo: 'Ciclo 1' },
-  { id: 2, año: 2025, ciclo: 'Ciclo 2' },
-];
-
 const Ciclos: React.FC = () => {
+  const { user, token, userPermissions } = useAuth();
+  const navigate = useNavigate();
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
     id: '',
     año: new Date().getFullYear(),
     ciclo: '',
+    status: 'A',
   });
-  const [ciclos, setCiclos] = useState<Ciclo[]>(mockCiclos);
+  const [ciclos, setCiclos] = useState<Ciclo[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.id) {
-      // Update existing ciclo
-      setCiclos(ciclos.map(c => c.id === parseInt(formData.id) ? { ...formData, id: parseInt(formData.id) } : c));
-    } else {
-      // Add new ciclo
-      const newId = ciclos.length > 0 ? Math.max(...ciclos.map(c => c.id)) + 1 : 1;
-      setCiclos([...ciclos, { ...formData, id: newId }]);
+  // Check permission
+  const hasPermission = userPermissions.some(p => p.permiso.toLowerCase() === 'Ciclos'.toLowerCase()) || user?.role === 'ADMINISTRADOR';
+
+  useEffect(() => {
+    if (!hasPermission) {
+      toast.error('No tienes permiso para acceder a Ciclos');
+      navigate('/dashboard');
+      return;
     }
-    setShowForm(false);
-    setFormData({ id: '', año: new Date().getFullYear(), ciclo: '' });
+
+    const fetchCiclos = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/api/ciclos', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCiclos(response.data.filter((c: Ciclo) => c.status === 'A'));
+      } catch (err) {
+        setError('Error al obtener ciclos');
+        toast.error('Error al obtener ciclos');
+        console.error(err);
+      }
+    };
+
+    if (token) {
+      fetchCiclos();
+    }
+  }, [token, hasPermission, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      if (formData.id) {
+        // Update existing ciclo
+        await axios.put(`http://localhost:3000/api/ciclos/${formData.id}`, {
+          año: formData.año,
+          ciclo: formData.ciclo,
+          status: formData.status,
+          userid: user?.id || 1,
+        }, { headers: { Authorization: `Bearer ${token}` } });
+        toast.success('Ciclo actualizado correctamente');
+      } else {
+        // Add new ciclo
+        await axios.post('http://localhost:3000/api/ciclos', {
+          año: formData.año,
+          ciclo: formData.ciclo,
+          status: 'A',
+          userid: user?.id || 1,
+        }, { headers: { Authorization: `Bearer ${token}` } });
+        toast.success('Ciclo creado correctamente');
+      }
+
+      // Refresh ciclos
+      const response = await axios.get('http://localhost:3000/api/ciclos', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCiclos(response.data.filter((c: Ciclo) => c.status === 'A'));
+      setShowForm(false);
+      setFormData({ id: '', año: new Date().getFullYear(), ciclo: '', status: 'A' });
+      setSelectedRow(null);
+    } catch (err) {
+      setError('Error al guardar ciclo');
+      toast.error('Error al guardar ciclo');
+      console.error(err);
+    }
   };
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {
@@ -53,17 +112,38 @@ const Ciclos: React.FC = () => {
         id: ciclo.id.toString(),
         año: ciclo.año,
         ciclo: ciclo.ciclo,
+        status: ciclo.status,
       });
       setShowForm(true);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedRow !== null) {
-      setCiclos(ciclos.filter((_, index) => index !== selectedRow));
-      setSelectedRow(null);
+      try {
+        await axios.delete(`http://localhost:3000/api/ciclos/${ciclos[selectedRow].id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { userid: user?.id || 1 },
+        });
+        setCiclos(ciclos.filter((_, index) => index !== selectedRow));
+        setSelectedRow(null);
+        toast.success('Ciclo eliminado correctamente');
+      } catch (err) {
+        setError('Error al eliminar ciclo');
+        toast.error('Error al eliminar ciclo');
+        console.error(err);
+      }
     }
   };
+
+  const handlePrint = () => {
+    console.log('Imprimir ciclos'); // Implement with jsPDF or similar
+    toast.info('Función de impresión en desarrollo');
+  };
+
+  if (!hasPermission) {
+    return null; // Redirect handled in useEffect
+  }
 
   if (showForm) {
     return (
@@ -83,12 +163,13 @@ const Ciclos: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && <div className="text-red-500 text-sm">{error}</div>}
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
               <input
                 type="text"
-                value={formData.id || (ciclos.length + 1)}
+                value={formData.id || (ciclos.length > 0 ? Math.max(...ciclos.map(c => c.id)) + 1 : 1)}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
               />
@@ -134,6 +215,7 @@ const Ciclos: React.FC = () => {
             </button>
           </div>
         </form>
+        <ToastContainer />
       </div>
     );
   }
@@ -143,7 +225,7 @@ const Ciclos: React.FC = () => {
       <div className="border-b border-gray-200 bg-blue-50">
         <div className="flex items-center justify-between p-3">
           <h2 className="text-lg font-medium text-gray-900">Consulta de Ciclos</h2>
-          <button className="text-gray-500 hover:text-gray-700">
+          <button onClick={() => navigate('/dashboard')} className="text-gray-500 hover:text-gray-700">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -165,7 +247,7 @@ const Ciclos: React.FC = () => {
             Modificar
           </button>
           <button
-            onClick={() => console.log('Imprimir ciclos')}
+            onClick={handlePrint}
             className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm"
           >
             <Printer className="w-4 h-4" />
@@ -180,8 +262,10 @@ const Ciclos: React.FC = () => {
             Eliminar
           </button>
           <button
+            onClick={() => navigate('/dashboard')}
             className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm"
           >
+            <LogOut className="w-4 h-4" />
             Salir
           </button>
         </div>
@@ -213,6 +297,7 @@ const Ciclos: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <ToastContainer />
     </div>
   );
 };

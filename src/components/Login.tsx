@@ -1,24 +1,28 @@
 import React, { useState } from 'react';
 import { User, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!username || !password) {
       setError('Por favor ingrese usuario y contraseña');
       return;
     }
 
-    const success = login(username, password);
-    if (!success) {
+    const success = await login(username, password);
+    if (success) {
+      navigate('/dashboard');
+    } else {
       setError('Credenciales inválidas');
     }
   };

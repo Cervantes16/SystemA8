@@ -27,27 +27,9 @@ export default function RecepcionProducto() {
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [detalleItems, setDetalleItems] = useState<RecepcionDetalle[]>([]);
-  const [formData, setFormData] = useState({
-    idRecepcion: '',
-    folioFisico: '',
-    lote: '',
-    fecha: new Date().toISOString().split('T')[0],
-    ciclos: '',
-    propietario: '',
-    granja: '',
-    carro: '',
-    chofer: '',
-    taras: 0,
-    kgxTara: 45.0000,
-    kgBasura: 0,
-    pPromedio: 0,
-    estanque: '',
-    totalKilos: 0.0000,
-    observacion: 'SIN OBSERVACION',
-    esMaquilla: false
-  });
-
-  const [recepciones] = useState<RecepcionItem[]>([
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [editingDetailIndex, setEditingDetailIndex] = useState<number | null>(null);
+  const [recepciones, setRecepciones] = useState<RecepcionItem[]>([
     {
       id: 253,
       fisico: '253',
@@ -72,8 +54,28 @@ export default function RecepcionProducto() {
     }
   ]);
 
+  const [formData, setFormData] = useState({
+    idRecepcion: '',
+    folioFisico: '',
+    lote: '',
+    fecha: new Date().toISOString().split('T')[0],
+    ciclos: '',
+    propietario: '',
+    granja: '',
+    carro: '',
+    chofer: '',
+    taras: 0,
+    kgxTara: 45.0000,
+    kgBasura: 0,
+    pPromedio: 0,
+    estanque: '',
+    totalKilos: 0.0000,
+    observacion: 'SIN OBSERVACION',
+    esMaquilla: false
+  });
+
   // Detalles por recepción - simulando datos de base de datos
-  const detallesPorRecepcion: { [key: number]: RecepcionDetalle[] } = {
+  const [detallesPorRecepcion, setDetallesPorRecepcion] = useState<{ [key: number]: RecepcionDetalle[] }>({
     253: [
       { estanque: 1, taras: 153.00, kgxTara: 45.00, tKilogramos: 6885.00, basura: 0.00, total: 6885.00, pPromedio: 13.95 },
       { estanque: 1, taras: 1.00, kgxTara: 23.00, tKilogramos: 23.00, basura: 0.00, total: 23.00, pPromedio: 13.95 }
@@ -82,19 +84,13 @@ export default function RecepcionProducto() {
       { estanque: 1, taras: 121.00, kgxTara: 45.00, tKilogramos: 5445.00, basura: 0.00, total: 5445.00, pPromedio: 14.20 },
       { estanque: 2, taras: 0.25, kgxTara: 44.00, tKilogramos: 11.00, basura: 0.00, total: 11.00, pPromedio: 14.20 }
     ]
-  };
+  });
 
   // Obtener detalle de la recepción seleccionada
   const getDetalleRecepcion = (): RecepcionDetalle[] => {
     if (selectedRow === null) return [];
     const recepcionId = recepciones[selectedRow].id;
     return detallesPorRecepcion[recepcionId] || [];
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Guardando recepción:', formData);
-    setShowForm(false);
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -113,36 +109,192 @@ export default function RecepcionProducto() {
       
       return newData;
     });
+    setErrorMessage('');
+  };
+
+  const validateForm = () => {
+    if (!formData.idRecepcion) return 'El ID de recepción es requerido';
+    if (!formData.folioFisico) return 'El folio físico es requerido';
+    if (!formData.lote) return 'El lote es requerido';
+    if (!formData.fecha) return 'La fecha es requerida';
+    if (!formData.ciclos) return 'El ciclo es requerido';
+    if (!formData.propietario) return 'El propietario es requerido';
+    if (!formData.granja) return 'La granja es requerida';
+    if (detalleItems.length === 0) return 'Debe agregar al menos un detalle';
+    return '';
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const validationError = validateForm();
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    const newRecepcion: RecepcionItem = {
+      id: parseInt(formData.idRecepcion),
+      fisico: formData.folioFisico,
+      fecha: formData.fecha,
+      lote: formData.lote,
+      ciclo: formData.ciclos,
+      granja: formData.granja,
+      propietario: formData.propietario,
+      totalKilos: getTotalGeneral(),
+      subida: 'N'
+    };
+
+    if (selectedRow !== null) {
+      // Modificar recepción existente
+      setRecepciones(prev => prev.map((item, index) => 
+        index === selectedRow ? newRecepcion : item
+      ));
+      setDetallesPorRecepcion(prev => ({
+        ...prev,
+        [newRecepcion.id]: [...detalleItems]
+      }));
+    } else {
+      // Nueva recepción
+      setRecepciones(prev => [...prev, newRecepcion]);
+      setDetallesPorRecepcion(prev => ({
+        ...prev,
+        [newRecepcion.id]: [...detalleItems]
+      }));
+    }
+
+    setShowForm(false);
+    setSelectedRow(null);
+    setDetalleItems([]);
+    setEditingDetailIndex(null);
+    setFormData({
+      idRecepcion: '',
+      folioFisico: '',
+      lote: '',
+      fecha: new Date().toISOString().split('T')[0],
+      ciclos: '',
+      propietario: '',
+      granja: '',
+      carro: '',
+      chofer: '',
+      taras: 0,
+      kgxTara: 45.0000,
+      kgBasura: 0,
+      pPromedio: 0,
+      estanque: '',
+      totalKilos: 0.0000,
+      observacion: 'SIN OBSERVACION',
+      esMaquilla: false
+    });
+    setErrorMessage('');
   };
 
   const handleAgregarDetalle = () => {
-    if (formData.estanque && formData.taras > 0 && formData.kgxTara > 0) {
-      const nuevoDetalle: RecepcionDetalle = {
-        estanque: parseInt(formData.estanque),
-        taras: formData.taras,
-        kgxTara: formData.kgxTara,
-        tKilogramos: formData.totalKilos,
-        basura: formData.kgBasura,
-        total: formData.totalKilos - formData.kgBasura
-      };
-      
-      setDetalleItems(prev => [...prev, nuevoDetalle]);
-      
-      // Limpiar campos del detalle
-      setFormData(prev => ({
-        ...prev,
-        estanque: '',
-        taras: 0,
-        kgxTara: 45.0000,
-        kgBasura: 0,
-        totalKilos: 0.0000,
-        pPromedio: 0
-      }));
+    if (!formData.estanque || formData.taras <= 0 || formData.kgxTara <= 0) {
+      setErrorMessage('Estanque, taras y kg por tara son requeridos y deben ser mayores a 0');
+      return;
     }
+
+    const nuevoDetalle: RecepcionDetalle = {
+      estanque: parseInt(formData.estanque),
+      taras: formData.taras,
+      kgxTara: formData.kgxTara,
+      tKilogramos: formData.totalKilos,
+      basura: formData.kgBasura,
+      total: formData.totalKilos - formData.kgBasura,
+      pPromedio: formData.pPromedio
+    };
+
+    if (editingDetailIndex !== null) {
+      // Actualizar detalle existente
+      setDetalleItems(prev => prev.map((item, index) => 
+        index === editingDetailIndex ? nuevoDetalle : item
+      ));
+      setEditingDetailIndex(null);
+    } else {
+      // Agregar nuevo detalle
+      setDetalleItems(prev => [...prev, nuevoDetalle]);
+    }
+    
+    // Limpiar campos del detalle
+    setFormData(prev => ({
+      ...prev,
+      estanque: '',
+      taras: 0,
+      kgxTara: 45.0000,
+      kgBasura: 0,
+      totalKilos: 0.0000,
+      pPromedio: 0
+    }));
+    setErrorMessage('');
   };
 
   const handleLimpiarDetalle = () => {
     setDetalleItems([]);
+    setEditingDetailIndex(null);
+    setErrorMessage('');
+  };
+
+  const handleDeleteDetail = (index: number) => {
+    setDetalleItems(prev => prev.filter((_, i) => i !== index));
+    setEditingDetailIndex(null);
+    setErrorMessage('');
+  };
+
+  const handleEditDetail = (index: number) => {
+    const detail = detalleItems[index];
+    setFormData(prev => ({
+      ...prev,
+      estanque: detail.estanque.toString(),
+      taras: detail.taras,
+      kgxTara: detail.kgxTara,
+      kgBasura: detail.basura,
+      pPromedio: detail.pPromedio,
+      totalKilos: detail.tKilogramos
+    }));
+    setEditingDetailIndex(index);
+    setErrorMessage('');
+  };
+
+  const handleModify = () => {
+    if (selectedRow === null) return;
+    
+    const recepcion = recepciones[selectedRow];
+    setFormData({
+      idRecepcion: recepcion.id.toString(),
+      folioFisico: recepcion.fisico,
+      lote: recepcion.lote,
+      fecha: recepcion.fecha,
+      ciclos: recepcion.ciclo,
+      propietario: recepcion.propietario,
+      granja: recepcion.granja,
+      carro: '',
+      chofer: '',
+      taras: 0,
+      kgxTara: 45.0000,
+      kgBasura: 0,
+      pPromedio: 0,
+      estanque: '',
+      totalKilos: 0.0000,
+      observacion: 'SIN OBSERVACION',
+      esMaquilla: false
+    });
+    setDetalleItems([...getDetalleRecepcion()]);
+    setShowForm(true);
+    setEditingDetailIndex(null);
+  };
+
+  const handleDeleteRecepcion = () => {
+    if (selectedRow === null) return;
+    
+    const recepcionId = recepciones[selectedRow].id;
+    setRecepciones(prev => prev.filter((_, index) => index !== selectedRow));
+    setDetallesPorRecepcion(prev => {
+      const newDetalles = { ...prev };
+      delete newDetalles[recepcionId];
+      return newDetalles;
+    });
+    setSelectedRow(null);
+    setErrorMessage('');
   };
 
   const getTotalGeneral = () => {
@@ -154,9 +306,35 @@ export default function RecepcionProducto() {
       <div className="flex-1 bg-white">
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
-            <h2 className="text-lg font-medium text-gray-900">Recepción de Producto - Nuevo</h2>
+            <h2 className="text-lg font-medium text-gray-900">
+              {selectedRow !== null ? 'Modificar Recepción' : 'Recepción de Producto - Nuevo'}
+            </h2>
             <button 
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                setDetalleItems([]);
+                setErrorMessage('');
+                setEditingDetailIndex(null);
+                setFormData({
+                  idRecepcion: '',
+                  folioFisico: '',
+                  lote: '',
+                  fecha: new Date().toISOString().split('T')[0],
+                  ciclos: '',
+                  propietario: '',
+                  granja: '',
+                  carro: '',
+                  chofer: '',
+                  taras: 0,
+                  kgxTara: 45.0000,
+                  kgBasura: 0,
+                  pPromedio: 0,
+                  estanque: '',
+                  totalKilos: 0.0000,
+                  observacion: 'SIN OBSERVACION',
+                  esMaquilla: false
+                });
+              }}
               className="text-gray-500 hover:text-gray-700"
             >
               <X className="w-5 h-5" />
@@ -165,6 +343,12 @@ export default function RecepcionProducto() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {errorMessage && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+              {errorMessage}
+            </div>
+          )}
+
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Id Recepción:</label>
@@ -374,7 +558,7 @@ export default function RecepcionProducto() {
                 className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Agregar
+                {editingDetailIndex !== null ? 'Actualizar' : 'Agregar'}
               </button>
               <button
                 onClick={handleLimpiarDetalle}
@@ -401,6 +585,7 @@ export default function RecepcionProducto() {
                       <th className="px-2 py-1 text-left">TOTAL KG</th>
                       <th className="px-2 py-1 text-left">KG BASURA</th>
                       <th className="px-2 py-1 text-left">P. PROMEDIO</th>
+                      <th className="px-2 py-1 text-left">ACCIÓN</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,7 +596,21 @@ export default function RecepcionProducto() {
                         <td className="px-2 py-1">{item.kgxTara.toFixed(4)}</td>
                         <td className="px-2 py-1">{item.tKilogramos.toFixed(4)}</td>
                         <td className="px-2 py-1">{item.basura.toFixed(4)}</td>
-                        <td className="px-2 py-1">0</td>
+                        <td className="px-2 py-1">{item.pPromedio.toFixed(4)}</td>
+                        <td className="px-2 py-1 flex gap-2">
+                          <button
+                            onClick={() => handleEditDetail(idx)}
+                            className="text-blue-500 hover:text-blue-700"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDetail(idx)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -435,7 +634,7 @@ export default function RecepcionProducto() {
 
           <div className="flex justify-end gap-2 pt-4 border-t">
             <button
-              type="button"
+              type="submit"
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
@@ -443,7 +642,12 @@ export default function RecepcionProducto() {
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                setDetalleItems([]);
+                setErrorMessage('');
+                setEditingDetailIndex(null);
+              }}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
             >
               Regresar
@@ -474,6 +678,7 @@ export default function RecepcionProducto() {
           </button>
           
           <button
+            onClick={handleModify}
             disabled={selectedRow === null}
             className="flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
           >
@@ -487,6 +692,7 @@ export default function RecepcionProducto() {
           </button>
           
           <button
+            onClick={handleDeleteRecepcion}
             disabled={selectedRow === null}
             className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
           >
