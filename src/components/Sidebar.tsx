@@ -56,6 +56,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
         { id: 'choferes', label: 'Choferes', icon: User },
         { id: 'granjas', label: 'Granjas', icon: Home },
         { id: 'productos', label: 'Productos', icon: ShoppingCart },
+        { id: 'pesadas', label: 'Pesadas', icon: ShoppingCart },
         { id: 'propietarios', label: 'Propietarios', icon: Building },
         { id: 'proveedores', label: 'Proveedores', icon: Package2 },
         { id: 'tallas', label: 'Tallas', icon: Ruler },

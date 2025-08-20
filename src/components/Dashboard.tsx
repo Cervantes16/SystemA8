@@ -17,6 +17,7 @@ import Granjas from './catalogs/Granjas';
 import Productos from './catalogs/Productos';
 import Propietarios from './catalogs/Propietarios';
 import Proveedores from './catalogs/Proveedores';
+import Pesadas from './catalogs/Pesadas';
 
 export default function Dashboard() {
   const { userPermissions } = useAuth();
@@ -39,6 +40,7 @@ export default function Dashboard() {
     clasificacion: 'Clasificacion',
     empaque: 'Empaque',
     etiquetas: 'GeneracionEtiquetas',
+    pesadas:'Pesadas',
   };
 
   // Check if user has permission for the active section
@@ -107,6 +109,10 @@ export default function Dashboard() {
         return <Empaque />;
       case 'etiquetas':
         return <GeneracionEtiquetas />;
+      case 'pesadas':
+        return <Pesadas />;
+
+        
       default:
         return (
           <div className="flex-1 flex items-center justify-center bg-gray-50">
