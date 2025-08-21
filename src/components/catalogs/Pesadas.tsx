@@ -1,89 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Printer, Trash2, Save, X } from 'lucide-react';
+import { API_CONFIG } from '../../api/apiConfig';
+import axios from 'axios';
 
 interface Pesada {
-  id: number;
+  idpesada: number;
   fecha: string;
   hora: string;
-  noIdentificacion: string;
+  noidentificacion: string;
   empleado: string;
   kilos: number;
   precio: number;
   total: number;
   lote: number;
 }
+
+/*  "idpesada": 2,
+        "fecha": "2025-08-18T07:00:00.000Z",
+        "hora": "09:15:00",
+        "noidentificacion": "P002",
+        "empleado": "María García",
+        "kilos": "150.75",
+        "precio": "2.30",
+        "total": "346.73",
+        "lote": 2 */
 
 interface FormData {
-  id: string;
+  idpesada: string;
   fecha: string;
   hora: string;
-  noIdentificacion: string;
+  noidentificacion: string;
   empleado: string;
   kilos: number;
   precio: number;
   total: number;
   lote: number;
 }
-
-const mockPesadas: Pesada[] = [
-  {
-    id: 1,
-    fecha: '2025-08-17',
-    hora: '14:30',
-    noIdentificacion: 'P001',
-    empleado: 'Juan Pérez',
-    kilos: 100.50,
-    precio: 2.50,
-    total: 251.25,
-    lote: 1
-  },
-  {
-    id: 2,
-    fecha: '2025-08-16',
-    hora: '09:15',
-    noIdentificacion: 'P002',
-    empleado: 'María García',
-    kilos: 150.75,
-    precio: 2.30,
-    total: 346.73,
-    lote: 2
-  }
-];
 
 const Pesadas: React.FC = () => {
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
-    id: '',
+    idpesada: '',
     fecha: '',
     hora: '',
-    noIdentificacion: '',
+    noidentificacion: '',
     empleado: '',
     kilos: 0,
     precio: 0,
     total: 0,
     lote: 0
   });
-  const [pesadas, setPesadas] = useState<Pesada[]>(mockPesadas);
+  const [pesadas, setPesadas] = useState<Pesada[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch pesadas data on component mount
+  useEffect(() => {
+    const fetchPesadas = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get<Pesada[]>(`${API_CONFIG.baseUrl}/pesadas`);
+        setPesadas(response.data);
+        setLoading(false);
+      } catch (err) {
+        setError('Error al cargar las pesadas');
+        setLoading(false);
+      }
+    };
+    fetchPesadas();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const total = formData.kilos * formData.precio;
     const newPesada = {
       ...formData,
       total,
-      id: formData.id ? parseInt(formData.id) : (pesadas.length > 0 ? Math.max(...pesadas.map(p => p.id)) + 1 : 1)
+      id: formData.idpesada ? parseInt(formData.idpesada) : undefined
     };
-    
-    if (formData.id) {
-      // Update existing pesada
-      setPesadas(pesadas.map(p => p.id === parseInt(formData.id) ? newPesada : p));
-    } else {
-      // Add new pesada
-      setPesadas([...pesadas, newPesada]);
+
+    try {
+      if (formData.idpesada) {
+        // Update existing pesada
+        await axios.put(`${API_CONFIG.baseUrl}/pesadas/${formData.idpesada}`, newPesada);
+        setPesadas(pesadas.map(p => p.idpesada === parseInt(formData.idpesada) ? { ...newPesada, idpesada: parseInt(formData.idpesada) } : p));
+      } else {
+        // Add new pesada
+        const response = await axios.post<Pesada>(`${API_CONFIG.baseUrl}/pesadas`, newPesada);
+        setPesadas([...pesadas, response.data]);
+      }
+      setShowForm(false);
+      setFormData({ idpesada: '', fecha: '', hora: '', noidentificacion: '', empleado: '', kilos: 0, precio: 0, total: 0, lote: 0 });
+    } catch (err) {
+      setError('Error al guardar la pesada');
     }
-    setShowForm(false);
-    setFormData({ id: '', fecha: '', hora: '', noIdentificacion: '', empleado: '', kilos: 0, precio: 0, total: 0, lote: 0 });
   };
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {
@@ -100,10 +111,10 @@ const Pesadas: React.FC = () => {
     if (selectedRow !== null) {
       const pesada = pesadas[selectedRow];
       setFormData({
-        id: pesada.id.toString(),
+        idpesada: pesada.idpesada.toString(),
         fecha: pesada.fecha,
         hora: pesada.hora,
-        noIdentificacion: pesada.noIdentificacion,
+        noidentificacion: pesada.noidentificacion,
         empleado: pesada.empleado,
         kilos: pesada.kilos,
         precio: pesada.precio,
@@ -114,12 +125,26 @@ const Pesadas: React.FC = () => {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedRow !== null) {
-      setPesadas(pesadas.filter((_, index) => index !== selectedRow));
-      setSelectedRow(null);
+      const pesadaId = pesadas[selectedRow].idpesada;
+      try {
+        await axios.delete(`${API_CONFIG.baseUrl}/pesadas/${pesadaId}`);
+        setPesadas(pesadas.filter((_, index) => index !== selectedRow));
+        setSelectedRow(null);
+      } catch (err) {
+        setError('Error al eliminar la pesada');
+      }
     }
   };
+
+  if (loading) {
+    return <div className="flex-1 bg-white p-6">Cargando...</div>;
+  }
+
+  if (error) {
+    return <div className="flex-1 bg-white p-6 text-red-500">{error}</div>;
+  }
 
   if (showForm) {
     return (
@@ -127,7 +152,7 @@ const Pesadas: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.id ? 'Modificar Pesada' : 'Nueva Pesada'}
+              {formData.idpesada ? 'Modificar Pesada' : 'Nueva Pesada'}
             </h2>
             <button 
               onClick={() => setShowForm(false)}
@@ -144,7 +169,7 @@ const Pesadas: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
               <input
                 type="text"
-                value={formData.id || (pesadas.length + 1)}
+                value={formData.idpesada || 'Se generará automáticamente'}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
               />
@@ -173,8 +198,8 @@ const Pesadas: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">No. Identificación:</label>
               <input
                 type="text"
-                value={formData.noIdentificacion}
-                onChange={(e) => handleInputChange('noIdentificacion', e.target.value)}
+                value={formData.noidentificacion}
+                onChange={(e) => handleInputChange('noidentificacion', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -324,20 +349,20 @@ const Pesadas: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {pesadas.map((pesada, index) => (
               <tr
-                key={pesada.id}
+                key={pesada.idpesada}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                   selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-900">{pesada.id}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{pesada.idpesada}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.fecha}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.hora}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{pesada.noIdentificacion}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{pesada.noidentificacion}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.empleado}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{pesada.kilos.toFixed(2)}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{pesada.precio.toFixed(2)}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{pesada.total.toFixed(2)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{typeof pesada.kilos === 'number' && !isNaN(pesada.kilos) ? pesada.kilos.toFixed(2) : 'N/A'}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{typeof pesada.precio === 'number' && !isNaN(pesada.precio) ? pesada.precio.toFixed(2) : 'N/A'}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{typeof pesada.total === 'number' && !isNaN(pesada.total) ? pesada.total.toFixed(2) : 'N/A'}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.lote}</td>
               </tr>
             ))}
