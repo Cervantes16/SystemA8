@@ -46,8 +46,8 @@ const Pesadas: React.FC = () => {
     hora: '',
     noidentificacion: '',
     empleado: '',
-    kilos: 0,
-    precio: 0,
+    kilos: 0.0,
+    precio: 0.0,
     total: 0,
     lote: 0
   });
@@ -360,9 +360,9 @@ const Pesadas: React.FC = () => {
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.hora}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.noidentificacion}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.empleado}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{typeof pesada.kilos === 'number' && !isNaN(pesada.kilos) ? pesada.kilos.toFixed(2) : 'N/A'}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{typeof pesada.precio === 'number' && !isNaN(pesada.precio) ? pesada.precio.toFixed(2) : 'N/A'}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{typeof pesada.total === 'number' && !isNaN(pesada.total) ? pesada.total.toFixed(2) : 'N/A'}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{parseFloat(pesada.kilos.toString()).toFixed(2)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{parseFloat( pesada.precio.toString()).toFixed(2)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{parseFloat( pesada.total.toString()).toFixed(2)}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{pesada.lote}</td>
               </tr>
             ))}
