@@ -7,14 +7,14 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface Ciclo {
-  id: number;
+  cicloid: number;
   año: number;
   ciclo: string;
   status: string;
 }
 
 interface FormData {
-  id: string;
+  cicloid: string;
   año: number;
   ciclo: string;
   status: string;
@@ -26,7 +26,7 @@ const Ciclos: React.FC = () => {
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
-    id: '',
+    cicloid: '',
     año: new Date().getFullYear(),
     ciclo: '',
     status: 'A',
@@ -34,8 +34,9 @@ const Ciclos: React.FC = () => {
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Check permission
-  const hasPermission = userPermissions.some(p => p.permiso.toLowerCase() === 'Ciclos'.toLowerCase()) || user?.role === 'ADMINISTRADOR';
+  const hasPermission =
+    userPermissions.some((p) => p.permiso.toLowerCase() === 'Ciclos'.toLowerCase()) ||
+    user?.role === 'ADMINISTRADOR';
 
   useEffect(() => {
     if (!hasPermission) {
@@ -66,9 +67,9 @@ const Ciclos: React.FC = () => {
     e.preventDefault();
     setError(null);
     try {
-      if (formData.id) {
+      if (formData.cicloid) {
         // Update existing ciclo
-        await axios.put(`http://localhost:3000/api/ciclos/${formData.id}`, {
+        await axios.put(`http://localhost:3000/api/ciclos/${formData.cicloid}`, {
           año: formData.año,
           ciclo: formData.ciclo,
           status: formData.status,
@@ -92,7 +93,7 @@ const Ciclos: React.FC = () => {
       });
       setCiclos(response.data.filter((c: Ciclo) => c.status === 'A'));
       setShowForm(false);
-      setFormData({ id: '', año: new Date().getFullYear(), ciclo: '', status: 'A' });
+      setFormData({ cicloid: '', año: new Date().getFullYear(), ciclo: '', status: 'A' });
       setSelectedRow(null);
     } catch (err) {
       setError('Error al guardar ciclo');
@@ -102,14 +103,14 @@ const Ciclos: React.FC = () => {
   };
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleModify = () => {
-    if (selectedRow !== null) {
+    if (selectedRow !== null && ciclos[selectedRow]) {
       const ciclo = ciclos[selectedRow];
       setFormData({
-        id: ciclo.id.toString(),
+        cicloid: ciclo.cicloid.toString(),
         año: ciclo.año,
         ciclo: ciclo.ciclo,
         status: ciclo.status,
@@ -119,9 +120,9 @@ const Ciclos: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (selectedRow !== null) {
+    if (selectedRow !== null && ciclos[selectedRow]) {
       try {
-        await axios.delete(`http://localhost:3000/api/ciclos/${ciclos[selectedRow].id}`, {
+        await axios.delete(`http://localhost:3000/api/ciclos/${ciclos[selectedRow].cicloid}`, {
           headers: { Authorization: `Bearer ${token}` },
           data: { userid: user?.id || 1 },
         });
@@ -141,9 +142,7 @@ const Ciclos: React.FC = () => {
     toast.info('Función de impresión en desarrollo');
   };
 
-  if (!hasPermission) {
-    return null; // Redirect handled in useEffect
-  }
+  if (!hasPermission) return null;
 
   if (showForm) {
     return (
@@ -151,12 +150,9 @@ const Ciclos: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.id ? 'Modificar Ciclo' : 'Nuevo Ciclo'}
+              {formData.cicloid ? 'Modificar Ciclo' : 'Nuevo Ciclo'}
             </h2>
-            <button 
-              onClick={() => setShowForm(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
+            <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -169,7 +165,13 @@ const Ciclos: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
               <input
                 type="text"
-                value={formData.id || (ciclos.length > 0 ? Math.max(...ciclos.map(c => c.id)) + 1 : 1)}
+                value={
+                  formData.cicloid
+                    ? formData.cicloid
+                    : ciclos.length > 0
+                    ? (Math.max(...ciclos.map((c) => c.cicloid)) + 1).toString()
+                    : '1'
+                }
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
               />
@@ -182,8 +184,8 @@ const Ciclos: React.FC = () => {
                 onChange={(e) => handleInputChange('año', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 required
-                min="2000"
-                max="2100"
+                min={2000}
+                max={2100}
               />
             </div>
             <div>
@@ -283,13 +285,13 @@ const Ciclos: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {ciclos.map((ciclo, index) => (
               <tr
-                key={ciclo.id}
+                key={ciclo.cicloid}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                   selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-900">{ciclo.id}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{ciclo.cicloid}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{ciclo.año}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{ciclo.ciclo}</td>
               </tr>

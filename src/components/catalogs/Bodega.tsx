@@ -1,76 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Printer, Trash2, Save, X } from 'lucide-react';
+import { getBodegas, createBodega, updateBodega, deleteBodega } from '../../api/bodegasApi';
 
 interface Bodega {
-  id: number;
-  nombre: string;
-  ubicacion: string;
-  capacidad: number;
-  estado: 'Activa' | 'Inactiva';
+  idbodega: number;
+  bodega: string;
+  lugar: string;
+  foranea: string;
+  status: string;
 }
 
 interface FormData {
-  id: string;
-  nombre: string;
-  ubicacion: string;
-  capacidad: number;
-  estado: 'Activa' | 'Inactiva';
+  idbodega?: number;
+  bodega: string;
+  lugar: string;
+  foranea: string;
+  status: string;
 }
 
-const mockBodegas: Bodega[] = [
-  { id: 1, nombre: 'Bodega Central', ubicacion: 'Ciudad Principal', capacidad: 10000, estado: 'Activa' },
-  { id: 2, nombre: 'Bodega Norte', ubicacion: 'Zona Industrial', capacidad: 5000, estado: 'Inactiva' },
-];
-
 const Bodegas: React.FC = () => {
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
-  const [showForm, setShowForm] = useState<boolean>(false);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    id: '',
-    nombre: '',
-    ubicacion: '',
-    capacidad: 0,
-    estado: 'Activa',
+    bodega: '',
+    lugar: '',
+    foranea: 'N',
+    status: 'A',
   });
-  const [bodegas, setBodegas] = useState<Bodega[]>(mockBodegas);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.id) {
-      // Update existing bodega
-      setBodegas(bodegas.map(b => b.id === parseInt(formData.id) ? { ...formData, id: parseInt(formData.id) } : b));
-    } else {
-      // Add new bodega
-      const newId = bodegas.length > 0 ? Math.max(...bodegas.map(b => b.id)) + 1 : 1;
-      setBodegas([...bodegas, { ...formData, id: newId }]);
-    }
-    setShowForm(false);
-    setFormData({ id: '', nombre: '', ubicacion: '', capacidad: 0, estado: 'Activa' });
+  useEffect(() => {
+    fetchBodegas();
+  }, []);
+
+  const fetchBodegas = async () => {
+    const data = await getBodegas();
+    setBodegas(data);
   };
 
-  const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.idbodega) {
+      await updateBodega(formData.idbodega, formData);
+    } else {
+      await createBodega(formData);
+    }
+    setShowForm(false);
+    setFormData({ bodega: '', lugar: '', foranea: 'N', status: 'A' });
+    fetchBodegas();
   };
 
   const handleModify = () => {
     if (selectedRow !== null) {
       const bodega = bodegas[selectedRow];
-      setFormData({
-        id: bodega.id.toString(),
-        nombre: bodega.nombre,
-        ubicacion: bodega.ubicacion,
-        capacidad: bodega.capacidad,
-        estado: bodega.estado,
-      });
+      setFormData({ ...bodega });
       setShowForm(true);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedRow !== null) {
-      setBodegas(bodegas.filter((_, index) => index !== selectedRow));
+      const bodega = bodegas[selectedRow];
+      await deleteBodega(bodega.idbodega);
       setSelectedRow(null);
+      fetchBodegas();
     }
+  };
+
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   if (showForm) {
@@ -79,7 +77,7 @@ const Bodegas: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.id ? 'Modificar Bodega' : 'Nueva Bodega'}
+              {formData.idbodega ? 'Modificar Bodega' : 'Nueva Bodega'}
             </h2>
             <button 
               onClick={() => setShowForm(false)}
@@ -92,55 +90,57 @@ const Bodegas: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-3 gap-4">
+            {formData.idbodega && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
+                <input
+                  type="text"
+                  value={formData.idbodega}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                />
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bodega:</label>
               <input
                 type="text"
-                value={formData.id || (bodegas.length + 1)}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre:</label>
-              <input
-                type="text"
-                value={formData.nombre}
-                onChange={(e) => handleInputChange('nombre', e.target.value)}
+                value={formData.bodega}
+                onChange={(e) => handleInputChange('bodega', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lugar:</label>
               <input
                 type="text"
-                value={formData.ubicacion}
-                onChange={(e) => handleInputChange('ubicacion', e.target.value)}
+                value={formData.lugar}
+                onChange={(e) => handleInputChange('lugar', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Capacidad (KG):</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Foranea (S/N):</label>
               <input
-                type="number"
-                value={formData.capacidad}
-                onChange={(e) => handleInputChange('capacidad', parseFloat(e.target.value))}
+                type="text"
+                value={formData.foranea}
+                onChange={(e) => handleInputChange('foranea', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                maxLength={1}
                 required
-                min="0"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status (A/I):</label>
               <select
-                value={formData.estado}
-                onChange={(e) => handleInputChange('estado', e.target.value as 'Activa' | 'Inactiva')}
+                value={formData.status}
+                onChange={(e) => handleInputChange('status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               >
-                <option value="Activa">Activa</option>
-                <option value="Inactiva">Inactiva</option>
+                <option value="A">Activo</option>
+                <option value="I">Inactivo</option>
               </select>
             </div>
           </div>
@@ -193,24 +193,12 @@ const Bodegas: React.FC = () => {
             Modificar
           </button>
           <button
-            onClick={() => console.log('Imprimir bodegas')}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir
-          </button>
-          <button
             onClick={handleDelete}
             disabled={selectedRow === null}
             className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
           >
             <Trash2 className="w-4 h-4" />
             Eliminar
-          </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm"
-          >
-            Salir
           </button>
         </div>
       </div>
@@ -220,26 +208,26 @@ const Bodegas: React.FC = () => {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">ID</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NOMBRE</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UBICACIÓN</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">CAPACIDAD (KG)</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">ESTADO</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BODEGA</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LUGAR</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FORANEA</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {bodegas.map((bodega, index) => (
               <tr
-                key={bodega.id}
+                key={bodega.idbodega}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                   selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.id}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.nombre}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.ubicacion}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.capacidad.toFixed(2)}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.estado}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.idbodega}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.bodega}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.lugar}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.foranea}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.status}</td>
               </tr>
             ))}
           </tbody>
