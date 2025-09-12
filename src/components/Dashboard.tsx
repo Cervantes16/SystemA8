@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
-import DataTable from './DataTable';
+//import DataTable from './DataTable';
 import RecepcionProducto from './operations/RecepcionProducto';
 import Clasificacion from './operations/Clasificacion';
 import Empaque from './operations/Empaque';
@@ -35,7 +35,8 @@ export default function Dashboard() {
     productos: 'Productos',
     propietarios: 'Propietarios',
     proveedores: 'Proveedores',
-    recepcion: 'Recepcion',
+    //recepcion: 'Recepcion',
+    recepcion:'RecepcionProducto',
     clasificacion: 'Clasificacion',
     empaque: 'Empaque',
     etiquetas: 'GeneracionEtiquetas',
@@ -99,6 +100,8 @@ export default function Dashboard() {
         return <Propietarios />;
       case 'proveedores':
         return <Proveedores />;
+      case 'recepcionproducto':
+        return <RecepcionProducto />;
       case 'recepcion':
         return <RecepcionProducto />;
       case 'clasificacion':
