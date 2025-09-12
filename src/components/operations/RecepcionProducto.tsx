@@ -283,36 +283,40 @@ export default function RecepcionProducto() {
       return;
     }
 
-    const newRecepcion: RecepcionItem = {
-      id: parseInt(formData.idRecepcion),
+    const newRecepcion = {
       foliofisico: formData.foliofisico,
-      fecha: formData.fecha,
       lote: formData.lote,
-      idciclo: formData.idciclos,
+      fecha: formData.fecha,
       idgranja: formData.idgranja,
+      taras: formData.taras,
+      totalkilogramos: getTotalGeneral(),
+      idcarro: formData.idcarro || null,
+      idchofer: formData.idchofer || null,
+      observacion: formData.observacion,
       idpropietario: formData.idpropietario,
-      totalKilos: getTotalGeneral(),
+      idciclo: formData.idciclos,
+      procesada: 'N',
+      maquila: formData.esMaquilla,
       subida: 'N',
+      status: 'A',
     };
 
+    const detalles = detalleItems.map(d => ({
+      foliofisico: formData.foliofisico,
+      estanque: d.estanque,
+      pesopromedio: d.pPromedio,
+      taras: d.taras,
+      kilogramosxtara: d.kgxTara,
+      totalkilogramos: d.tKilogramos,
+      kilogramosbasura: d.basura,
+    }));
+
     try {
-      if (selectedRow !== null) {
-        await axios.put(`http://localhost:3000/api/recepcion/${newRecepcion.id}`, newRecepcion);
-        await Promise.all(
-          detalleItems.map((d) =>
-            axios.put(`http://localhost:3000/api/recepcion/${newRecepcion.id}/detalles`, d)
-          )
-        );
-      } else {
-        await axios.post('http://localhost:3000/api/recepcion', newRecepcion);
-        await Promise.all(
-          detalleItems.map((d) =>
-            axios.post(`http://localhost:3000/api/recepcion/${newRecepcion.id}/detalles`, d)
-          )
-        );
-      }
+        await axios.post('http://localhost:3000/api/recepcion', { ...newRecepcion, detalles }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchRecepciones();
-      fetchNextId(); // Refresh the next ID after creating a new reception
+      fetchNextId();
       resetForm();
     } catch (error) {
       console.error('Error al guardar recepción', error);
@@ -324,9 +328,11 @@ export default function RecepcionProducto() {
     if (selectedRow === null) return;
     const recepcionId = recepciones[selectedRow].id;
     try {
-      await axios.delete(`http://localhost:3000/api/recepcion/${recepcionId}`);
+      await axios.delete(`http://localhost:3000/api/recepcion/${recepcionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchRecepciones();
-      fetchNextId(); // Refresh the next ID after deletion
+      fetchNextId();
       setSelectedRow(null);
     } catch (error) {
       console.error('Error al eliminar recepción', error);
@@ -592,7 +598,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Carro:</label>
                 <div className="flex">
                   <select
-                    value={formData.idcarro}
+                    value={formData.idcarro || ''}
                     onChange={(e) => handleInputChange('idcarro', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
@@ -615,7 +621,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chofer:</label>
                 <div className="flex">
                   <select
-                    value={formData.idchofer}
+                    value={formData.idchofer || ''}
                     onChange={(e) => handleInputChange('idchofer', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
