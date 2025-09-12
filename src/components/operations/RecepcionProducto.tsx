@@ -529,12 +529,12 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ciclos:</label>
                 <select
                   value={formData.idciclos}
-                  onChange={(e) => handleInputChange('ciclos', e.target.value)}
+                  onChange={(e) => handleInputChange('idciclos', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Seleccionar...</option>
                   {ciclos?.map((ciclo) => (
-                    <option key={ciclo.cicloid} value={`${ciclo.año}-${ciclo.ciclo}`}>
+                    <option key={ciclo.cicloid} value={ciclo.cicloid?.toString() || ''}>
                       {`${ciclo.año}-${ciclo.ciclo}`}
                     </option>
                   ))}
@@ -545,12 +545,12 @@ export default function RecepcionProducto() {
                 <div className="flex">
                   <select
                     value={formData.idpropietario}
-                    onChange={(e) => handleInputChange('propietario', e.target.value)}
+                    onChange={(e) => handleInputChange('idpropietario', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {propietarios?.map((propietario) => (
-                      <option key={propietario.idpropietario} value={propietario.nombre}>
+                      <option key={propietario.idpropietario} value={propietario.idpropietario?.toString() || ''}>
                         {propietario.nombre}
                       </option>
                     ))}
@@ -570,12 +570,12 @@ export default function RecepcionProducto() {
                 <div className="flex">
                   <select
                     value={formData.idgranja}
-                    onChange={(e) => handleInputChange('granja', e.target.value)}
+                    onChange={(e) => handleInputChange('idgranja', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {granjas?.map((granja) => (
-                      <option key={granja.idgranja} value={granja.granja}>
+                      <option key={granja.idgranja} value={granja.idgranja?.toString() || ''}>
                         {granja.granja}
                       </option>
                     ))}
@@ -593,12 +593,12 @@ export default function RecepcionProducto() {
                 <div className="flex">
                   <select
                     value={formData.idcarro}
-                    onChange={(e) => handleInputChange('carro', e.target.value)}
+                    onChange={(e) => handleInputChange('idcarro', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {carros?.map((carro) => (
-                      <option key={carro.idcarro} value={carro.placas}>
+                      <option key={carro.idcarro} value={carro.idcarro?.toString() || ''}>
                         {carro.placas}
                       </option>
                     ))}
@@ -616,12 +616,12 @@ export default function RecepcionProducto() {
                 <div className="flex">
                   <select
                     value={formData.idchofer}
-                    onChange={(e) => handleInputChange('chofer', e.target.value)}
+                    onChange={(e) => handleInputChange('idchofer', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {choferes?.map((chofer) => (
-                      <option key={chofer.idchofer} value={chofer.nombre}>
+                      <option key={chofer.idchofer} value={chofer.idchofer?.toString() || ''}>
                         {chofer.nombre}
                       </option>
                     ))}
@@ -891,7 +891,11 @@ export default function RecepcionProducto() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {recepciones?.map((row, index) => (
+              {recepciones?.map((row, index) => {
+                const ciclo = ciclos.find(c => c.cicloid?.toString() === row.idciclo);
+                const granja = granjas.find(g => g.idgranja?.toString() === row.idgranja);
+                const propietario = propietarios.find(p => p.idpropietario?.toString() === row.idpropietario);
+                return (
                 <tr
                   key={index}
                   onClick={() => setSelectedRow(index)}
@@ -903,15 +907,16 @@ export default function RecepcionProducto() {
                   <td className="px-4 py-3 text-sm text-gray-900">{row.foliofisico}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.fecha}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.lote}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.idciclo}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.idgranja}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.idpropietario}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{ciclo ? `${ciclo.año}-${ciclo.ciclo}` : row.idciclo}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{granja ? granja.granja : row.idgranja}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{propietario ? propietario.nombre : row.idpropietario}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {detallesPorRecepcion[row.id]?.reduce((sum, d) => sum + d.total, 0).toFixed(3) || '0'}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.subida}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -922,8 +927,9 @@ export default function RecepcionProducto() {
               Drag a column header here to group by that column
             </div>
             <div className="mb-2 text-sm text-blue-600 font-medium">
-              Recepción ID: {recepciones[selectedRow].id} - {recepciones[selectedRow].idgranja} -{' '}
-              {recepciones[selectedRow].idpropietario}
+              Recepción ID: {recepciones[selectedRow].id} -{' '}
+              {granjas.find(g => g.idgranja?.toString() === recepciones[selectedRow].idgranja)?.granja || recepciones[selectedRow].idgranja} -{' '}
+              {propietarios.find(p => p.idpropietario?.toString() === recepciones[selectedRow].idpropietario)?.nombre || recepciones[selectedRow].idpropietario}
             </div>
             <table className="w-full mt-2 text-sm">
               <thead>
