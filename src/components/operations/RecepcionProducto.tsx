@@ -6,12 +6,12 @@ import { useAuth } from '../../context/AuthContext';
 
 interface RecepcionItem {
   id: number;
-  fisico: string;
+  foliofisico: string;
   fecha: string;
   lote: string;
-  ciclo: string;
-  granja: string;
-  propietario: string;
+  idciclo: string;
+  idgranja: string;
+  idpropietario: string;
   totalKilos: number;
   subida: string;
 }
@@ -70,14 +70,14 @@ export default function RecepcionProducto() {
 
   const [formData, setFormData] = useState({
     idRecepcion: '',
-    folioFisico: '',
+    foliofisico: '',
     lote: '',
     fecha: new Date().toISOString().split('T')[0],
-    ciclos: '',
-    propietario: '',
-    granja: '',
-    carro: '',
-    chofer: '',
+    idciclos: '',
+    idpropietario: '',
+    idgranja: '',
+    idcarro: '',
+    idchofer: '',
     taras: 0,
     kgxTara: 45.0,
     kgBasura: 0,
@@ -174,7 +174,7 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/recepcion/next-id', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Next ID Response:', res.data);
+      console.log('Next ID Response:', res.data.id);
       setNextId(res.data.id || null);
     } catch (error: any) {
       console.error('Error fetching next ID:', error);
@@ -264,12 +264,12 @@ export default function RecepcionProducto() {
 
   const validateForm = () => {
     if (!formData.idRecepcion) return 'El ID de recepción es requerido';
-    if (!formData.folioFisico) return 'El folio físico es requerido';
+    if (!formData.foliofisico) return 'El folio físico es requerido';
     if (!formData.lote) return 'El lote es requerido';
     if (!formData.fecha) return 'La fecha es requerida';
-    if (!formData.ciclos) return 'El ciclo es requerido';
-    if (!formData.propietario) return 'El propietario es requerido';
-    if (!formData.granja) return 'La granja es requerida';
+    if (!formData.idciclos) return 'El ciclo es requerido';
+    if (!formData.idpropietario) return 'El propietario es requerido';
+    if (!formData.idgranja) return 'La granja es requerida';
     if (detalleItems.length === 0) return 'Debe agregar al menos un detalle';
     return '';
   };
@@ -285,12 +285,12 @@ export default function RecepcionProducto() {
 
     const newRecepcion: RecepcionItem = {
       id: parseInt(formData.idRecepcion),
-      fisico: formData.folioFisico,
+      foliofisico: formData.foliofisico,
       fecha: formData.fecha,
       lote: formData.lote,
-      ciclo: formData.ciclos,
-      granja: formData.granja,
-      propietario: formData.propietario,
+      idciclo: formData.idciclos,
+      idgranja: formData.idgranja,
+      idpropietario: formData.idpropietario,
       totalKilos: getTotalGeneral(),
       subida: 'N',
     };
@@ -398,15 +398,15 @@ export default function RecepcionProducto() {
     setEditingDetailIndex(null);
     setErrorMessage('');
     setFormData({
-      idRecepcion: '',
-      folioFisico: '',
+      idRecepcion: nextId?.toString() || '',
+      foliofisico: '',
       lote: '',
       fecha: new Date().toISOString().split('T')[0],
-      ciclos: '',
-      propietario: '',
-      granja: '',
-      carro: '',
-      chofer: '',
+      idciclos: '',
+      idpropietario: '',
+      idgranja: '',
+      idcarro: '',
+      idchofer: '',
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
@@ -416,9 +416,6 @@ export default function RecepcionProducto() {
       observacion: 'SIN OBSERVACION',
       esMaquilla: false,
     });
-    if (nextId) {
-      setFormData(prev => ({ ...prev, idRecepcion: nextId.toString() }));
-    }
   };
 
   const handleModify = () => {
@@ -426,14 +423,14 @@ export default function RecepcionProducto() {
     const recepcion = recepciones[selectedRow];
     setFormData({
       idRecepcion: recepcion.id.toString(),
-      folioFisico: recepcion.fisico,
+      foliofisico: recepcion.foliofisico,
       lote: recepcion.lote,
       fecha: recepcion.fecha,
-      ciclos: recepcion.ciclo,
-      propietario: recepcion.propietario,
-      granja: recepcion.granja,
-      carro: '',
-      chofer: '',
+      idciclos: recepcion.idciclo,
+      idpropietario: recepcion.idpropietario,
+      idgranja: recepcion.idgranja,
+      idcarro: '',
+      idchofer: '',
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
@@ -483,8 +480,8 @@ export default function RecepcionProducto() {
                 <input
                   type="text"
                   value={formData.idRecepcion}
-                  onChange={(e) => handleInputChange('idRecepcion', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                   placeholder="1019"
                 />
               </div>
@@ -492,8 +489,8 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Folio Físico:</label>
                 <input
                   type="text"
-                  value={formData.folioFisico}
-                  onChange={(e) => handleInputChange('folioFisico', e.target.value)}
+                  value={formData.foliofisico}
+                  onChange={(e) => handleInputChange('foliofisico', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   placeholder="0"
                 />
@@ -531,7 +528,7 @@ export default function RecepcionProducto() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ciclos:</label>
                 <select
-                  value={formData.ciclos}
+                  value={formData.idciclos}
                   onChange={(e) => handleInputChange('ciclos', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
@@ -547,7 +544,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Propietario:</label>
                 <div className="flex">
                   <select
-                    value={formData.propietario}
+                    value={formData.idpropietario}
                     onChange={(e) => handleInputChange('propietario', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
@@ -572,7 +569,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Granja:</label>
                 <div className="flex">
                   <select
-                    value={formData.granja}
+                    value={formData.idgranja}
                     onChange={(e) => handleInputChange('granja', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
@@ -595,7 +592,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Carro:</label>
                 <div className="flex">
                   <select
-                    value={formData.carro}
+                    value={formData.idcarro}
                     onChange={(e) => handleInputChange('carro', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
@@ -618,7 +615,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chofer:</label>
                 <div className="flex">
                   <select
-                    value={formData.chofer}
+                    value={formData.idchofer}
                     onChange={(e) => handleInputChange('chofer', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
@@ -813,7 +810,12 @@ export default function RecepcionProducto() {
         </div>
         <div className="flex items-center gap-2 px-3 pb-3 overflow-x-auto flex-nowrap whitespace-nowrap">
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setShowForm(true);
+              if (nextId) {
+                setFormData(prev => ({ ...prev, idRecepcion: nextId.toString() }));
+              }
+            }}
             className="flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors text-sm"
           >
             <Plus className="w-4 h-4" />
@@ -898,12 +900,12 @@ export default function RecepcionProducto() {
                   }`}
                 >
                   <td className="px-4 py-3 text-sm text-gray-900">{row.id}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.fisico}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.foliofisico}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.fecha}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.lote}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.ciclo}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.granja}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.propietario}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.idciclo}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.idgranja}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.idpropietario}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {detallesPorRecepcion[row.id]?.reduce((sum, d) => sum + d.total, 0).toFixed(3) || '0'}
                   </td>
@@ -920,8 +922,8 @@ export default function RecepcionProducto() {
               Drag a column header here to group by that column
             </div>
             <div className="mb-2 text-sm text-blue-600 font-medium">
-              Recepción ID: {recepciones[selectedRow].id} - {recepciones[selectedRow].granja} -{' '}
-              {recepciones[selectedRow].propietario}
+              Recepción ID: {recepciones[selectedRow].id} - {recepciones[selectedRow].idgranja} -{' '}
+              {recepciones[selectedRow].idpropietario}
             </div>
             <table className="w-full mt-2 text-sm">
               <thead>
