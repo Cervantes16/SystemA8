@@ -5,7 +5,7 @@ import { getCarros } from '../../api/carrosApi';
 import { useAuth } from '../../context/AuthContext';
 
 interface RecepcionItem {
-  id: number;
+  idrecepcion?: number; // Updated to match database schema
   foliofisico: string;
   fecha: string;
   lote: string;
@@ -28,7 +28,7 @@ interface RecepcionDetalle {
 
 interface Granja {
   idgranja?: number;
-  granja?: string; // Matches "granja" field from API
+  granja?: string;
   status?: string;
 }
 
@@ -47,7 +47,7 @@ interface Propietario {
 
 interface Carro {
   idcarro?: number;
-  placas?: string; // Updated from "placa" to "placas" to match API
+  placas?: string;
   status?: string;
 }
 
@@ -123,7 +123,7 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/recepcion', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('API Response:', res.data);
+      console.log('API Response:', res.data); // Debug log
       let recepcionesArray: RecepcionItem[] = [];
       if (Array.isArray(res.data)) {
         recepcionesArray = res.data;
@@ -134,29 +134,31 @@ export default function RecepcionProducto() {
         setErrorMessage('Error: No se pudieron cargar las recepciones.');
         return;
       }
-      if (recepcionesArray.length === 0) {
-        console.warn('No recepciones found.');
-      }
       setRecepciones(recepcionesArray);
 
       const detalles: { [key: number]: RecepcionDetalle[] } = {};
       await Promise.all(
         recepcionesArray.map(async (r) => {
+          const id = r.idrecepcion; // Use idrecepcion explicitly
+          if (!id) {
+            console.warn(`Skipping reception with invalid ID:`, r);
+            return;
+          }
           try {
-            const dRes = await axios.get(`http://localhost:3000/api/recepcion/${r.id}/detalles`, {
+            const dRes = await axios.get(`http://localhost:3000/api/recepcion/${id}/detalles`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (Array.isArray(dRes.data)) {
-              detalles[r.id] = dRes.data;
+              detalles[id] = dRes.data;
             } else if (Array.isArray(dRes.data.detalles)) {
-              detalles[r.id] = dRes.data.detalles;
+              detalles[id] = dRes.data.detalles;
             } else {
-              detalles[r.id] = [];
-              console.error(`Detalles de la recepción ${r.id} no son un array`, dRes.data);
+              detalles[id] = [];
+              console.error(`Detalles de la recepción ${id} no son un array`, dRes.data);
             }
           } catch (error) {
-            console.error(`Error al obtener detalles de recepción ${r.id}`, error);
-            detalles[r.id] = [];
+            console.error(`Error al obtener detalles de recepción ${id}`, error);
+            detalles[id] = [];
           }
         })
       );
@@ -251,11 +253,12 @@ export default function RecepcionProducto() {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => {
-      const newData = { ...prev, [field]: value };
+      const newValue = field === 'fecha' || field === 'foliofisico' || field === 'lote' || field === 'estanque' || field === 'observacion' || field === 'idciclos' || field === 'idpropietario' || field === 'idgranja' || field === 'idcarro' || field === 'idchofer' || field === 'esMaquilla' ? value : parseFloat(value) || 0;
+      const newData = { ...prev, [field]: newValue };
       if (field === 'taras' || field === 'kgxTara') {
-        const taras = field === 'taras' ? parseFloat(value) || 0 : prev.taras;
-        const kgxTara = field === 'kgxTara' ? parseFloat(value) || 0 : prev.kgxTara;
-        newData.totalKilos = parseFloat((taras * kgxTara).toFixed(4));
+        const taras = field === 'taras' ? newValue : prev.taras;
+        const kgxTara = field === 'kgxTara' ? newValue : prev.kgxTara;
+        newData.totalKilos = parseFloat((taras * kgxTara).toFixed(4)) || 0;
       }
       return newData;
     });
@@ -296,7 +299,7 @@ export default function RecepcionProducto() {
       idpropietario: formData.idpropietario,
       idciclo: formData.idciclos,
       procesada: 'N',
-      maquila: formData.esMaquilla,
+      maquila: formData.esMaquilla ? 'Y' : 'N',
       subida: 'N',
       status: 'A',
     };
@@ -312,21 +315,26 @@ export default function RecepcionProducto() {
     }));
 
     try {
-        await axios.post('http://localhost:3000/api/recepcion', { ...newRecepcion, detalles }, {
+      const response = await axios.post('http://localhost:3000/api/recepcion', { ...newRecepcion, detalles }, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log('Response:', response.data);
       fetchRecepciones();
       fetchNextId();
       resetForm();
     } catch (error) {
       console.error('Error al guardar recepción', error);
-      setErrorMessage('Error al guardar la recepción.');
+      setErrorMessage('Error al guardar la recepción. Verifica los detalles.');
     }
   };
 
   const handleDeleteRecepcion = async () => {
     if (selectedRow === null) return;
-    const recepcionId = recepciones[selectedRow].id;
+    const recepcionId = recepciones[selectedRow].idrecepcion;
+    if (!recepcionId) {
+      console.error('No valid recepcionId for deletion');
+      return;
+    }
     try {
       await axios.delete(`http://localhost:3000/api/recepcion/${recepcionId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -348,13 +356,13 @@ export default function RecepcionProducto() {
     }
 
     const nuevoDetalle: RecepcionDetalle = {
-      estanque: parseInt(formData.estanque),
-      taras: formData.taras,
-      kgxTara: formData.kgxTara,
-      tKilogramos: formData.totalKilos,
-      basura: formData.kgBasura,
-      total: formData.totalKilos - formData.kgBasura,
-      pPromedio: formData.pPromedio,
+      estanque: parseInt(formData.estanque) || 0,
+      taras: formData.taras || 0,
+      kgxTara: formData.kgxTara || 0,
+      tKilogramos: formData.totalKilos || 0,
+      basura: formData.kgBasura || 0,
+      total: (formData.totalKilos || 0) - (formData.kgBasura || 0),
+      pPromedio: formData.pPromedio || 0,
     };
 
     if (editingDetailIndex !== null) {
@@ -428,7 +436,7 @@ export default function RecepcionProducto() {
     if (selectedRow === null) return;
     const recepcion = recepciones[selectedRow];
     setFormData({
-      idRecepcion: recepcion.id.toString(),
+      idRecepcion: recepcion.idrecepcion?.toString() || '',
       foliofisico: recepcion.foliofisico,
       lote: recepcion.lote,
       fecha: recepcion.fecha,
@@ -453,8 +461,8 @@ export default function RecepcionProducto() {
 
   const getDetalleRecepcion = (): RecepcionDetalle[] => {
     if (selectedRow === null) return [];
-    const recepcionId = recepciones[selectedRow].id;
-    return detallesPorRecepcion[recepcionId] || [];
+    const recepcionId = recepciones[selectedRow].idrecepcion;
+    return detallesPorRecepcion[recepcionId || 0] || [];
   };
 
   // ---------------------- RENDER ----------------------
@@ -649,7 +657,7 @@ export default function RecepcionProducto() {
                   <input
                     type="number"
                     value={formData.taras}
-                    onChange={(e) => handleInputChange('taras', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('taras', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                     step="0.0001"
                   />
@@ -659,7 +667,7 @@ export default function RecepcionProducto() {
                   <input
                     type="number"
                     value={formData.kgxTara}
-                    onChange={(e) => handleInputChange('kgxTara', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('kgxTara', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                     step="0.0001"
                   />
@@ -669,7 +677,7 @@ export default function RecepcionProducto() {
                   <input
                     type="number"
                     value={formData.kgBasura}
-                    onChange={(e) => handleInputChange('kgBasura', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('kgBasura', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                     step="0.0001"
                   />
@@ -679,7 +687,7 @@ export default function RecepcionProducto() {
                   <input
                     type="number"
                     value={formData.pPromedio}
-                    onChange={(e) => handleInputChange('pPromedio', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('pPromedio', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                     step="0.0001"
                   />
@@ -909,7 +917,7 @@ export default function RecepcionProducto() {
                     selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                   }`}
                 >
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.id}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.idrecepcion}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.foliofisico}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.fecha}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.lote}</td>
@@ -917,7 +925,7 @@ export default function RecepcionProducto() {
                   <td className="px-4 py-3 text-sm text-gray-900">{granja ? granja.granja : row.idgranja}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{propietario ? propietario.nombre : row.idpropietario}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
-                    {detallesPorRecepcion[row.id]?.reduce((sum, d) => sum + d.total, 0).toFixed(3) || '0'}
+                    {detallesPorRecepcion[row.idrecepcion || 0]?.reduce((sum, d) => sum + d.total, 0).toFixed(3) || '0'}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.subida}</td>
                 </tr>
@@ -933,7 +941,7 @@ export default function RecepcionProducto() {
               Drag a column header here to group by that column
             </div>
             <div className="mb-2 text-sm text-blue-600 font-medium">
-              Recepción ID: {recepciones[selectedRow].id} -{' '}
+              Recepción ID: {recepciones[selectedRow].idrecepcion} -{' '}
               {granjas.find(g => g.idgranja?.toString() === recepciones[selectedRow].idgranja)?.granja || recepciones[selectedRow].idgranja} -{' '}
               {propietarios.find(p => p.idpropietario?.toString() === recepciones[selectedRow].idpropietario)?.nombre || recepciones[selectedRow].idpropietario}
             </div>
