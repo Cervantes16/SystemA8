@@ -9,15 +9,7 @@ import {
   ArrowLeftCircle,
   ArrowDownCircle,
   Search,
-  Save,
 } from "lucide-react";
-
-/*
-  Empaques.tsx
-  Versión moderna con look similar a la imagen: panel lateral, toolbar superior y formulario-modal centrado.
-  - Sin dependencias externas (shadcn) para evitar errores de imports.
-  - Usa TailwindCSS para estilos (ya asumidos en tu proyecto Vite).
-*/
 
 // --- UI primitives (simples, autónomos) ---
 const IconBtn = ({ title, children, className = "", ...props }: any) => (
@@ -52,6 +44,59 @@ const Input = (props: any) => (
 const Select = (props: any) => (
   <select {...props} className={`w-full px-2 py-1 border rounded text-sm ${props.className || ""}`} />
 );
+
+// --- Barcode generation helpers ---
+function getJulianDay(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "000";
+  const startOfYear = new Date(date.getFullYear(), 0, 0);
+  const diff = date.getTime() - startOfYear.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const julianDay = Math.floor(diff / oneDay);
+  return julianDay.toString();
+}
+
+function padString(value: string, length: number): string {
+  return value.padStart(length, "0");
+}
+
+const productMap: { [key: string]: string } = {
+  SICABEZA: "01", // S/CABEZA
+  CONCABEZA: "02", // C/CABEZA
+};
+
+const tallaMap: { [key: string]: string } = {
+  "41-50": "01",
+  "51-60": "02",
+  "61-70": "03",
+};
+
+const granjaMap: { [key: string]: string } = {
+  AGUILAS8: "069",
+  // Add other granjas as needed
+};
+
+function generarBarras(form: any): string {
+  let lote = form.lote || "";
+  let subLote = form.subLote || "";
+  let granja = granjaMap[form.recepcion] || form.recepcion || "000";
+  let talla = tallaMap[form.tamanio] || "00";
+  let julianDay = form.fecha ? getJulianDay(form.fecha) : "000";
+  let year = form.fecha ? new Date(form.fecha).getFullYear().toString() : "0000";
+  let kgCarton = Math.round(Number(form.kgXCarton) || 0).toString();
+  let product = productMap[form.prod] || "00";
+
+  lote = padString(lote, 4);
+  subLote = padString(subLote, 5);
+  granja = padString(granja, 3);
+  talla = padString(talla, 2);
+  julianDay = padString(julianDay, 3);
+  year = padString(year, 4);
+  kgCarton = padString(kgCarton, 2);
+  product = padString(product, 2);
+
+  return `${lote}${subLote}${granja}${talla}${julianDay}${year}${kgCarton}${product}`;
+}
 
 // --- Component ---
 export default function Empaques() {
@@ -93,7 +138,7 @@ export default function Empaques() {
   // totales
   const totalKgsCart = detalles.reduce((s, d) => s + (Number(d.totalKg) || 0), 0);
   const totalKgsSueltos = tallas.reduce((s, t) => s + (Number(t.kgs) || 0), 0);
-  const kgsRecibidos = Number(form.totalKg) || 0; // podrías separar kgsRecibidos si lo deseas
+  const kgsRecibidos = Number(form.totalKg) || 0;
   const rendimiento = kgsRecibidos > 0 ? ((totalKgsCart + totalKgsSueltos) / kgsRecibidos) * 100 : 0;
 
   useEffect(() => {
@@ -132,18 +177,15 @@ export default function Empaques() {
       ubicacion: "",
       observacion: e.observ,
     });
-    // mock: cargar detalles/tallas asociados
     setDetalles([]);
     setTallas([]);
     setShowForm(true);
   }
 
   function onGuardar() {
-    // validar minimal
     if (!form.fecha || !form.recepcion || !form.lote) {
       return alert("Complete Fecha, Recepción y Lote");
     }
-    // si idEmpaque existe -> update
     if (form.idEmpaque) {
       setEmpaques((prev) => prev.map((p) => (p.id === form.idEmpaque ? { ...p, fecha: form.fecha, lote: form.lote, kilos: totalKgsCart + totalKgsSueltos, granja: form.recepcion, observ: form.observacion } : p)));
     } else {
@@ -170,10 +212,13 @@ export default function Empaques() {
     setSelectedIndex(null);
   }
 
-  // agregar detalle (cartones)
   function agregarDetalle() {
-    if (!form.subLote || !form.tamanio) return alert("Complete SubLote y Talla");
-    if (Number(form.cartones) <= 0 || Number(form.kgXCarton) <= 0) return alert("Cartones y Kg por cartón deben ser mayores a 0");
+    if (!form.subLote || !form.tamanio || !form.recepcion || !form.fecha || !form.lote || !form.kgXCarton || !form.prod) {
+      return alert("Complete SubLote, Talla, Recepción, Fecha, Lote, Kg por Cartón y Producto");
+    }
+    if (Number(form.cartones) <= 0 || Number(form.kgXCarton) <= 0) {
+      return alert("Cartones y Kg por cartón deben ser mayores a 0");
+    }
     const d = {
       id: detalles.length ? Math.max(...detalles.map((x) => x.id)) + 1 : 1,
       estanque: form.estanque,
@@ -186,7 +231,7 @@ export default function Empaques() {
       totalKg: Number(form.cartones || 0) * Number(form.kgXCarton || 0),
       ubicacion: form.ubicacion,
       subLote: form.subLote,
-      barras: `0001${String(form.subLote).padStart(3, "0")}020${String(form.tamanio).replace("-", "")}`,
+      barras: form.idEmpaque ? "" : generarBarras(form),
     };
     setDetalles((prev) => [...prev, d]);
   }
@@ -195,7 +240,6 @@ export default function Empaques() {
     setDetalles((prev) => prev.filter((x) => x.id !== id));
   }
 
-  // tallas sueltas
   function agregarTallaSueltas() {
     if (!form.tamanio || Number(form.totalKg) <= 0) return alert("Seleccione talla y kilogramos");
     const t = {
@@ -213,7 +257,6 @@ export default function Empaques() {
 
   return (
     <div className="flex h-screen bg-slate-100 text-sm">
-
       {/* Main */}
       <main className="flex-1 p-4 overflow-auto">
         {/* Toolbar */}
@@ -238,7 +281,6 @@ export default function Empaques() {
               <Trash2 size={16} /> Eliminar
             </IconBtn>
           </div>
-
           <div>
             <GhostBtn className="px-3 py-1">Salir</GhostBtn>
           </div>
@@ -381,7 +423,9 @@ export default function Empaques() {
                         <button onClick={() => { setDetalles([]); }} className="px-3 py-1 bg-rose-500 text-white rounded flex items-center gap-2">
                           <Trash2 size={16} /> Limpiar
                         </button>
-                        <div className="ml-auto text-xs text-slate-500">{/* barcode placeholder */}</div>
+                        <div className="ml-auto text-xs text-slate-500">
+                          Barcode: {form.idEmpaque ? "N/A (Modificación)" : generarBarras(form)}
+                        </div>
                       </div>
 
                       {/* tabla de detalles */}
@@ -509,12 +553,10 @@ export default function Empaques() {
                     <ArrowLeftCircle size={18} /> Regresar
                   </button>
                 </div>
-
               </Card>
             </div>
           </div>
         )}
-
       </main>
     </div>
   );
