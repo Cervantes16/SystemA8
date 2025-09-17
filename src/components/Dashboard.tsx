@@ -38,7 +38,8 @@ export default function Dashboard() {
     //recepcion: 'Recepcion',
     recepcion:'RecepcionProducto',
     clasificacion: 'Clasificacion',
-    empaque: 'Empaque',
+    empaque: 'RegistrarEmpaque',
+    //empaque: 'Empaque',
     etiquetas: 'GeneracionEtiquetas',
   };
 

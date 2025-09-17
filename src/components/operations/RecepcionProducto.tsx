@@ -5,7 +5,7 @@ import { getCarros } from '../../api/carrosApi';
 import { useAuth } from '../../context/AuthContext';
 
 interface RecepcionItem {
-  idrecepcion?: number; // Updated to match database schema
+  idrecepcion?: number;
   foliofisico: string;
   fecha: string;
   lote: string;
@@ -123,7 +123,7 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/recepcion', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('API Response:', res.data); // Debug log
+      console.log('API Response (recepciones):', res.data);
       let recepcionesArray: RecepcionItem[] = [];
       if (Array.isArray(res.data)) {
         recepcionesArray = res.data;
@@ -139,7 +139,7 @@ export default function RecepcionProducto() {
       const detalles: { [key: number]: RecepcionDetalle[] } = {};
       await Promise.all(
         recepcionesArray.map(async (r) => {
-          const id = r.idrecepcion; // Use idrecepcion explicitly
+          const id = r.idrecepcion;
           if (!id) {
             console.warn(`Skipping reception with invalid ID:`, r);
             return;
@@ -148,17 +148,24 @@ export default function RecepcionProducto() {
             const dRes = await axios.get(`http://localhost:3000/api/recepcion/${id}/detalles`, {
               headers: { Authorization: `Bearer ${token}` },
             });
+            console.log(`Request URL for id ${id}:`, `http://localhost:3000/api/recepcion/${id}/detalles`);
+            console.log(`Details response for id ${id}:`, dRes.data);
             if (Array.isArray(dRes.data)) {
               detalles[id] = dRes.data;
             } else if (Array.isArray(dRes.data.detalles)) {
               detalles[id] = dRes.data.detalles;
             } else {
               detalles[id] = [];
-              console.error(`Detalles de la recepción ${id} no son un array`, dRes.data);
+              console.warn(`Unexpected details format for id ${id}, setting empty array`, dRes.data);
             }
           } catch (error) {
             console.error(`Error al obtener detalles de recepción ${id}`, error);
-            detalles[id] = [];
+            if (error) {
+              console.warn(`No details found for reception ${id}, setting empty array`);
+              detalles[id] = [];
+            } else {
+              detalles[id] = [];
+            }
           }
         })
       );
@@ -233,6 +240,7 @@ export default function RecepcionProducto() {
         console.warn('Unexpected carros response format:', res);
         setCarros([]);
       }
+      console.log('Carros Response:', res); // Existing log
     } catch (error) {
       console.error('Error fetching carros:', error);
       setErrorMessage('Error al cargar los carros.');

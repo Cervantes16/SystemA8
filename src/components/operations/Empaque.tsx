@@ -1,918 +1,521 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Printer, Trash2, Save, Search, X, Upload } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import {
+  PlusSquare,
+  Edit3,
+  Printer,
+  FilePlus,
+  Upload,
+  Trash2,
+  ArrowLeftCircle,
+  ArrowDownCircle,
+  Search,
+  Save,
+} from "lucide-react";
 
-interface EmpaqueItem {
-  id: number;
-  fecha: string;
-  lote: string;
-  kilogramos: number;
-  cartones: number;
-  granja: string;
-  observaciones: string;
-  subido: 'S' | 'N';
-}
+/*
+  Empaques.tsx
+  Versión moderna con look similar a la imagen: panel lateral, toolbar superior y formulario-modal centrado.
+  - Sin dependencias externas (shadcn) para evitar errores de imports.
+  - Usa TailwindCSS para estilos (ya asumidos en tu proyecto Vite).
+*/
 
-interface EmpaqueDetalle {
-  id: number;
-  empaqueId: number;
-  idRecepcion: string;
-  descripcion: string;
-  estanque: number;
-  talla: string;
-  cartones: number;
-  kgCarton: number;
-  descabece: number;
-  totalKg: number;
-  ubicacion: string;
-  camarones: number;
-  subLote: string;
-  codigo: string;
-}
+// --- UI primitives (simples, autónomos) ---
+const IconBtn = ({ title, children, className = "", ...props }: any) => (
+  <button
+    title={title}
+    className={
+      "flex items-center gap-2 px-3 py-2 rounded-md shadow-sm text-sm text-white " + className
+    }
+    {...props}
+  >
+    {children}
+  </button>
+);
 
-interface TallaDetalle {
-  id: number;
-  empaqueId: number;
-  talla: string;
-  kgs: number;
-}
+const GhostBtn = ({ children, className = "", ...props }: any) => (
+  <button
+    {...props}
+    className={`flex items-center gap-2 px-2 py-1 rounded-md text-sm border ${className}`}
+  >
+    {children}
+  </button>
+);
 
-interface FormData {
-  idEmpaque: string;
-  fecha: string;
-  recepcion: string;
-  lote: string;
-  subLote: string;
-  talla: string;
-  prod: string;
-  estanque: number;
-  cartones: number;
-  kgXCarton: number;
-  noCam: number;
-  decabece: number;
-  totalKg: number;
-  ubicacion: string;
-  observacion: string;
-  barcode: string;
-}
+const Card = ({ children, className = "" }: any) => (
+  <div className={`bg-white rounded-lg shadow ${className}`}>{children}</div>
+);
 
-const initialEmpaques: EmpaqueItem[] = [
-  {
-    id: 1,
-    fecha: '06/15/2021',
-    lote: '1',
-    kilogramos: 5000.00,
-    cartones: 254.00,
-    granja: 'AGUILAS',
-    observaciones: 'SIN OBSERVACION',
-    subido: 'N',
-  },
-];
+const Input = (props: any) => (
+  <input {...props} className={`w-full px-2 py-1 border rounded text-sm ${props.className || ""}`} />
+);
 
-const initialDetalleEmpaques: EmpaqueDetalle[] = [
-  {
-    id: 1,
-    empaqueId: 1,
-    idRecepcion: 'SICABEZA',
-    descripcion: 'SICABEZA',
-    estanque: 1,
-    talla: '41-50',
-    cartones: 162.00,
-    kgCarton: 20.00,
-    descabece: 0.00,
-    totalKg: 3240.00,
-    ubicacion: '',
-    camarones: 42.00,
-    subLote: '1',
-    codigo: '000100001020011862021-2001',
-  },
-  {
-    id: 2,
-    empaqueId: 1,
-    idRecepcion: 'SICABEZA',
-    descripcion: 'SICABEZA',
-    estanque: 1,
-    talla: '91-110',
-    cartones: 4.00,
-    kgCarton: 20.00,
-    descabece: 0.00,
-    totalKg: 80.00,
-    ubicacion: '',
-    camarones: 91.00,
-    subLote: '6',
-    codigo: '000100006020019162021-2001',
-  },
-];
+const Select = (props: any) => (
+  <select {...props} className={`w-full px-2 py-1 border rounded text-sm ${props.className || ""}`} />
+);
 
-const initialTallasDetalle: TallaDetalle[] = [
-  { id: 1, empaqueId: 1, talla: '41-50', kgs: 2.00 },
-  { id: 2, empaqueId: 1, talla: '51-60', kgs: 0.80 },
-  { id: 3, empaqueId: 1, talla: '61-70', kgs: 18.00 },
-];
-
-const Empaques: React.FC = () => {
-  const [selectedRow, setSelectedRow] = useState<number | null>(null);
+// --- Component ---
+export default function Empaques() {
+  // pantalla principal
   const [showForm, setShowForm] = useState(false);
-  const [empaques, setEmpaques] = useState<EmpaqueItem[]>(initialEmpaques);
-  const [detalleEmpaques, setDetalleEmpaques] = useState<EmpaqueDetalle[]>(initialDetalleEmpaques);
-  const [tallasDetalle, setTallasDetalle] = useState<TallaDetalle[]>(initialTallasDetalle);
-  const [formData, setFormData] = useState<FormData>({
-    idEmpaque: '',
-    fecha: new Date().toISOString().split('T')[0],
-    recepcion: '',
-    lote: '',
-    subLote: '',
-    talla: '',
-    prod: '',
-    estanque: 0,
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  // datos (mock)
+  const [empaques, setEmpaques] = useState<any[]>([
+    { id: 1, fecha: "06/15/2021", lote: "1", kilos: 5080, cartones: 254, granja: "AGUILAS8", observ: "SIN OBSERVACION", subido: "N" },
+    { id: 2, fecha: "06/15/2021", lote: "2", kilos: 3980, cartones: 199, granja: "AGUILAS8", observ: "SIN OBSERVACION", subido: "N" },
+  ]);
+
+  // formulario
+  const emptyForm = {
+    idEmpaque: "",
+    fecha: new Date().toISOString().split("T")[0],
+    recepcion: "",
+    lote: "",
+    subLote: "",
+    tamanio: "41-50",
+    prod: "SICABEZA",
+    estanque: "",
     cartones: 0,
     kgXCarton: 0,
     noCam: 0,
     decabece: 0,
     totalKg: 0,
-    ubicacion: '',
-    observacion: 'SIN OBSERVACION',
-    barcode: '',
-  });
-  const [currentEmpaqueId, setCurrentEmpaqueId] = useState<number | null>(null);
-  const [kgsRecibidos, setKgsRecibidos] = useState(0);
-  const [totalKgsCart, setTotalKgsCart] = useState(0);
-  const [kgsSueltos, setKgsSueltos] = useState(0);
-  const [rendimiento, setRendimiento] = useState(0);
+    ubicacion: "",
+    observacion: "SIN OBSERVACION",
+  };
+
+  const [form, setForm] = useState<any>(emptyForm);
+
+  // detalles y tallas
+  const [detalles, setDetalles] = useState<any[]>([]);
+  const [tallas, setTallas] = useState<any[]>([]);
+
+  // totales
+  const totalKgsCart = detalles.reduce((s, d) => s + (Number(d.totalKg) || 0), 0);
+  const totalKgsSueltos = tallas.reduce((s, t) => s + (Number(t.kgs) || 0), 0);
+  const kgsRecibidos = Number(form.totalKg) || 0; // podrías separar kgsRecibidos si lo deseas
+  const rendimiento = kgsRecibidos > 0 ? ((totalKgsCart + totalKgsSueltos) / kgsRecibidos) * 100 : 0;
 
   useEffect(() => {
-    const filteredDetalles = currentEmpaqueId
-      ? detalleEmpaques.filter(det => det.empaqueId === currentEmpaqueId)
-      : detalleEmpaques;
-    const filteredTallas = currentEmpaqueId
-      ? tallasDetalle.filter(talla => talla.empaqueId === currentEmpaqueId)
-      : tallasDetalle;
-    const totalCart = filteredDetalles.reduce((sum, item) => sum + item.totalKg, 0);
-    const totalSueltos = filteredTallas.reduce((sum, item) => sum + item.kgs, 0);
-    setTotalKgsCart(totalCart);
-    setKgsSueltos(totalSueltos);
-    const totalProcessed = totalCart + totalSueltos;
-    setRendimiento(kgsRecibidos > 0 ? (totalProcessed / kgsRecibidos) * 100 : 0);
-  }, [detalleEmpaques, tallasDetalle, kgsRecibidos, currentEmpaqueId]);
+    // mantener totalKg actualizado al cambiar cartones o kgXCarton
+    setForm((prev: any) => ({ ...prev, totalKg: (Number(prev.cartones || 0) * Number(prev.kgXCarton || 0)).toFixed(4) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.cartones, form.kgXCarton]);
 
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      totalKg: prev.cartones * prev.kgXCarton,
-    }));
-  }, [formData.cartones, formData.kgXCarton]);
+  // abrir nuevo
+  function onNuevo() {
+    setForm(emptyForm);
+    setDetalles([]);
+    setTallas([]);
+    setShowForm(true);
+    setSelectedIndex(null);
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.fecha || !formData.recepcion || !formData.lote || kgsRecibidos <= 0) {
-      alert('Por favor, complete todos los campos requeridos: Fecha, Recepción, Lote, Kgs Recibidos.');
-      return;
-    }
-    if (!/^\d+$/.test(formData.lote)) {
-      alert('El lote debe ser un número entero.');
-      return;
-    }
-
-    const newEmpaque: EmpaqueItem = {
-      id: formData.idEmpaque ? parseInt(formData.idEmpaque) : empaques.length + 1,
-      fecha: formData.fecha,
-      lote: formData.lote,
-      kilogramos: totalKgsCart + kgsSueltos,
-      cartones: detalleEmpaques
-        .filter(det => det.empaqueId === (formData.idEmpaque ? parseInt(formData.idEmpaque) : empaques.length + 1))
-        .reduce((sum, item) => sum + item.cartones, 0),
-      granja: formData.recepcion,
-      observaciones: formData.observacion,
-      subido: 'N',
-    };
-
-    if (formData.idEmpaque) {
-      setEmpaques(empaques.map(emp => emp.id === parseInt(formData.idEmpaque) ? newEmpaque : emp));
-    } else {
-      setEmpaques([...empaques, newEmpaque]);
-    }
-
-    setShowForm(false);
-    resetForm();
-  };
-
-  const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleBarcodeChange = (value: string) => {
-    const match = value.match(/^0001(\d{3})(\d{2})(\d{2})(\d{4})(\d{4})-2001$/);
-    if (match) {
-      const [, subLote, , tallaStart, ,] = match;
-      setFormData(prev => ({
-        ...prev,
-        barcode: value,
-        subLote,
-        talla: `${tallaStart}-${parseInt(tallaStart) + 9}`,
-        prod: tallaStart <= '50' ? 'SICABEZA' : 'CONCABEZA',
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, barcode: value }));
-    }
-  };
-
-  const handleAddDetalle = () => {
-    if (!formData.subLote || !formData.talla || !formData.prod || formData.cartones <= 0 || formData.kgXCarton <= 0) {
-      alert('Por favor, complete SubLote, Talla, Producto, Cartones y Kg X Carton.');
-      return;
-    }
-    if (!/^\d+$/.test(formData.subLote)) {
-      alert('El SubLote debe ser un número entero.');
-      return;
-    }
-
-    const newDetalle: EmpaqueDetalle = {
-      id: detalleEmpaques.length + 1,
-      empaqueId: currentEmpaqueId || empaques.length + 1,
-      idRecepcion: formData.prod,
-      descripcion: formData.prod,
-      estanque: formData.estanque,
-      talla: formData.talla,
-      cartones: formData.cartones,
-      kgCarton: formData.kgXCarton,
-      descabece: formData.decabece,
-      totalKg: formData.cartones * formData.kgXCarton,
-      ubicacion: formData.ubicacion,
-      camarones: formData.noCam,
-      subLote: formData.subLote,
-      codigo: `0001${formData.subLote.padStart(3, '0')}020${formData.talla.replace('-', '')}2021-2001`,
-    };
-
-    setDetalleEmpaques([...detalleEmpaques, newDetalle]);
-    resetDetalleForm();
-  };
-
-  const handleDeleteDetalle = (id: number) => {
-    setDetalleEmpaques(detalleEmpaques.filter(det => det.id !== id));
-  };
-
-  const handleClearDetalle = () => {
-    resetDetalleForm();
-  };
-
-  const handleAddTallaDetalle = () => {
-    if (!formData.talla || formData.totalKg <= 0) {
-      alert('Por favor, seleccione una Talla y especifique los Kilogramos Sueltos.');
-      return;
-    }
-
-    const newTalla: TallaDetalle = {
-      id: tallasDetalle.length + 1,
-      empaqueId: currentEmpaqueId || empaques.length + 1,
-      talla: formData.talla,
-      kgs: formData.totalKg,
-    };
-
-    setTallasDetalle([...tallasDetalle, newTalla]);
-    resetTallaForm();
-  };
-
-  const handleDeleteTalla = (id: number) => {
-    setTallasDetalle(tallasDetalle.filter(talla => talla.id !== id));
-  };
-
-  const handleClearTallaDetalle = () => {
-    resetTallaForm();
-  };
-
-  const handleModify = () => {
-    if (selectedRow !== null) {
-      const empaque = empaques[selectedRow];
-      setFormData({
-        idEmpaque: empaque.id.toString(),
-        fecha: empaque.fecha,
-        recepcion: empaque.granja,
-        lote: empaque.lote,
-        subLote: '',
-        talla: '',
-        prod: '',
-        estanque: 0,
-        cartones: 0,
-        kgXCarton: 0,
-        noCam: 0,
-        decabece: 0,
-        totalKg: 0,
-        ubicacion: '',
-        observacion: empaque.observaciones,
-        barcode: '',
-      });
-      setCurrentEmpaqueId(empaque.id);
-      setKgsRecibidos(empaque.kilogramos);
-      setShowForm(true);
-    }
-  };
-
-  const handleDelete = () => {
-    if (selectedRow !== null) {
-      const empaqueId = empaques[selectedRow].id;
-      setEmpaques(empaques.filter((_, index) => index !== selectedRow));
-      setDetalleEmpaques(detalleEmpaques.filter(det => det.empaqueId !== empaqueId));
-      setTallasDetalle(tallasDetalle.filter(talla => talla.empaqueId !== empaqueId));
-      setSelectedRow(null);
-    }
-  };
-
-  const handleSubirNube = () => {
-    if (selectedRow !== null) {
-      setEmpaques(empaques.map((emp, index) =>
-        index === selectedRow ? { ...emp, subido: 'S' } : emp
-      ));
-      alert('Empaque subido a la nube.');
-    }
-  };
-
-  const handleImprimir = () => {
-    console.log('Imprimiendo empaques:', empaques);
-    alert('Imprimiendo lista de empaques.');
-  };
-
-  const handleImprimirConSalidas = () => {
-    console.log('Imprimiendo empaques con salidas:', empaques, detalleEmpaques);
-    alert('Imprimiendo empaques con salidas.');
-  };
-
-  const resetForm = () => {
-    setFormData({
-      idEmpaque: '',
-      fecha: new Date().toISOString().split('T')[0],
-      recepcion: '',
-      lote: '',
-      subLote: '',
-      talla: '',
-      prod: '',
-      estanque: 0,
+  // abrir modificar
+  function onModificar() {
+    if (selectedIndex === null) return alert("Seleccione un empaque");
+    const e = empaques[selectedIndex];
+    setForm({
+      idEmpaque: e.id,
+      fecha: e.fecha,
+      recepcion: e.granja,
+      lote: e.lote,
+      subLote: "",
+      tamanio: "41-50",
+      prod: "SICABEZA",
+      estanque: "",
       cartones: 0,
       kgXCarton: 0,
       noCam: 0,
       decabece: 0,
-      totalKg: 0,
-      ubicacion: '',
-      observacion: 'SIN OBSERVACION',
-      barcode: '',
+      totalKg: e.kilos,
+      ubicacion: "",
+      observacion: e.observ,
     });
-    setCurrentEmpaqueId(null);
-    setKgsRecibidos(0);
-  };
+    // mock: cargar detalles/tallas asociados
+    setDetalles([]);
+    setTallas([]);
+    setShowForm(true);
+  }
 
-  const resetDetalleForm = () => {
-    setFormData(prev => ({
-      ...prev,
-      subLote: '',
-      talla: '',
-      prod: '',
-      estanque: 0,
-      cartones: 0,
-      kgXCarton: 0,
-      noCam: 0,
-      decabece: 0,
-      totalKg: 0,
-      ubicacion: '',
-      barcode: '',
-    }));
-  };
+  function onGuardar() {
+    // validar minimal
+    if (!form.fecha || !form.recepcion || !form.lote) {
+      return alert("Complete Fecha, Recepción y Lote");
+    }
+    // si idEmpaque existe -> update
+    if (form.idEmpaque) {
+      setEmpaques((prev) => prev.map((p) => (p.id === form.idEmpaque ? { ...p, fecha: form.fecha, lote: form.lote, kilos: totalKgsCart + totalKgsSueltos, granja: form.recepcion, observ: form.observacion } : p)));
+    } else {
+      const newItem = {
+        id: empaques.length ? Math.max(...empaques.map((x) => x.id)) + 1 : 1,
+        fecha: form.fecha,
+        lote: form.lote,
+        kilos: totalKgsCart + totalKgsSueltos,
+        cartones: totalKgsCart > 0 ? Math.round(totalKgsCart / (form.kgXCarton || 1)) : 0,
+        granja: form.recepcion,
+        observ: form.observacion,
+        subido: "N",
+      };
+      setEmpaques((prev) => [newItem, ...prev]);
+    }
+    setShowForm(false);
+  }
 
-  const resetTallaForm = () => {
-    setFormData(prev => ({
-      ...prev,
-      talla: '',
-      totalKg: 0,
-    }));
-  };
+  function onEliminar() {
+    if (selectedIndex === null) return alert("Seleccione un empaque para eliminar");
+    const confirm = window.confirm("¿Eliminar empaque?");
+    if (!confirm) return;
+    setEmpaques((prev) => prev.filter((_, i) => i !== selectedIndex));
+    setSelectedIndex(null);
+  }
 
-  if (showForm) {
-    const filteredDetalles = currentEmpaqueId
-      ? detalleEmpaques.filter(det => det.empaqueId === currentEmpaqueId)
-      : detalleEmpaques;
-    const filteredTallas = currentEmpaqueId
-      ? tallasDetalle.filter(talla => talla.empaqueId === currentEmpaqueId)
-      : tallasDetalle;
+  // agregar detalle (cartones)
+  function agregarDetalle() {
+    if (!form.subLote || !form.tamanio) return alert("Complete SubLote y Talla");
+    if (Number(form.cartones) <= 0 || Number(form.kgXCarton) <= 0) return alert("Cartones y Kg por cartón deben ser mayores a 0");
+    const d = {
+      id: detalles.length ? Math.max(...detalles.map((x) => x.id)) + 1 : 1,
+      estanque: form.estanque,
+      descripcion: form.prod,
+      talla: form.tamanio,
+      camarones: Number(form.noCam || 0),
+      cartones: Number(form.cartones || 0),
+      kgCarton: Number(form.kgXCarton || 0),
+      descabece: Number(form.decabece || 0),
+      totalKg: Number(form.cartones || 0) * Number(form.kgXCarton || 0),
+      ubicacion: form.ubicacion,
+      subLote: form.subLote,
+      barras: `0001${String(form.subLote).padStart(3, "0")}020${String(form.tamanio).replace("-", "")}`,
+    };
+    setDetalles((prev) => [...prev, d]);
+  }
 
-    return (
-      <div className="flex-1 bg-white flex flex-col min-h-screen">
-        <div className="border-b border-gray-200 bg-blue-50 sticky top-0 z-10">
-          <div className="flex items-center justify-between p-3">
-            <h2 className="text-lg font-medium text-gray-900">
-              {formData.idEmpaque ? 'Modificar Empaque' : 'Nuevo Empaque'}
-            </h2>
-            <button
-              onClick={() => {
-                setShowForm(false);
-                resetForm();
-              }}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+  function borrarDetalle(id: number) {
+    setDetalles((prev) => prev.filter((x) => x.id !== id));
+  }
 
-        <div className="flex-1 overflow-y-auto">
-          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Id Empaque:</label>
-                <input
-                  type="text"
-                  value={formData.idEmpaque || (empaques.length + 1)}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha:</label>
-                <input
-                  type="date"
-                  value={formData.fecha}
-                  onChange={(e) => handleInputChange('fecha', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Abrir Etiquetado (F3):</label>
-                <input
-                  type="text"
-                  value={formData.barcode}
-                  onChange={(e) => handleBarcodeChange(e.target.value)}
-                  placeholder="Escanee código de barras"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kgs Recibidos:</label>
-                <input
-                  type="number"
-                  value={kgsRecibidos}
-                  onChange={(e) => setKgsRecibidos(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  step="0.0001"
-                  min="0"
-                  required
-                />
-              </div>
-            </div>
+  // tallas sueltas
+  function agregarTallaSueltas() {
+    if (!form.tamanio || Number(form.totalKg) <= 0) return alert("Seleccione talla y kilogramos");
+    const t = {
+      id: tallas.length ? Math.max(...tallas.map((x) => x.id)) + 1 : 1,
+      talla: form.tamanio,
+      kgs: Number(form.totalKg || 0),
+    };
+    setTallas((prev) => [...prev, t]);
+    setForm((p: any) => ({ ...p, totalKg: 0 }));
+  }
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recepción:</label>
-                <div className="flex">
-                  <select
-                    value={formData.recepcion}
-                    onChange={(e) => handleInputChange('recepcion', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="AGUILAS">AGUILAS</option>
-                    <option value="EL SOL">EL SOL</option>
-                  </select>
-                  <button type="button" className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600">
-                    <Search className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lote:</label>
-                <input
-                  type="text"
-                  value={formData.lote}
-                  onChange={(e) => handleInputChange('lote', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="border-t pt-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Detalle</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SubLote:</label>
-                  <input
-                    type="text"
-                    value={formData.subLote}
-                    onChange={(e) => handleInputChange('subLote', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Talla:</label>
-                  <div className="flex">
-                    <select
-                      value={formData.talla}
-                      onChange={(e) => handleInputChange('talla', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="41-50">41-50</option>
-                      <option value="51-60">51-60</option>
-                      <option value="61-70">61-70</option>
-                      <option value="71-90">71-90</option>
-                      <option value="91-110">91-110</option>
-                    </select>
-                    <button type="button" className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600">
-                      <Search className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prod:</label>
-                  <div className="flex">
-                    <select
-                      value={formData.prod}
-                      onChange={(e) => handleInputChange('prod', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="SICABEZA">SICABEZA</option>
-                      <option value="CONCABEZA">CONCABEZA</option>
-                    </select>
-                    <button type="button" className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600">
-                      <Search className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estanque:</label>
-                  <input
-                    type="number"
-                    value={formData.estanque}
-                    onChange={(e) => handleInputChange('estanque', parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cartones:</label>
-                  <input
-                    type="number"
-                    value={formData.cartones}
-                    onChange={(e) => handleInputChange('cartones', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                    step="0.0001"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kg X Carton:</label>
-                  <input
-                    type="number"
-                    value={formData.kgXCarton}
-                    onChange={(e) => handleInputChange('kgXCarton', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                    step="0.0001"
-                    min="0"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">No Cam:</label>
-                  <input
-                    type="number"
-                    value={formData.noCam}
-                    onChange={(e) => handleInputChange('noCam', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                    step="0.0001"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Decabece:</label>
-                  <input
-                    type="number"
-                    value={formData.decabece}
-                    onChange={(e) => handleInputChange('decabece', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                    step="0.0001"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Kg:</label>
-                  <input
-                    type="number"
-                    value={formData.totalKg.toFixed(4)}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación:</label>
-                  <input
-                    type="text"
-                    value={formData.ubicacion}
-                    onChange={(e) => handleInputChange('ubicacion', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2 flex items-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddDetalle}
-                    className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClearDetalle}
-                    className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 flex items-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Limpiar
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="bg-blue-50 p-4 rounded-md">
-                  <h4 className="font-medium mb-2">Buscar x Etiquetas</h4>
-                  <div className="max-h-60 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-blue-200">
-                        <tr>
-                          <th className="px-2 py-1 text-left hidden sm:table-cell">ESTANQUE</th>
-                          <th className="px-2 py-1 text-left">DESC</th>
-                          <th className="px-2 py-1 text-left">TALLA</th>
-                          <th className="px-2 py-1 text-left hidden md:table-cell">CAMAR.</th>
-                          <th className="px-2 py-1 text-left">CARTONES</th>
-                          <th className="px-2 py-1 text-left hidden lg:table-cell">KGCART.</th>
-                          <th className="px-2 py-1 text-left hidden lg:table-cell">DESCAB.</th>
-                          <th className="px-2 py-1 text-left">TOTAL KG</th>
-                          <th className="px-2 py-1 text-left hidden md:table-cell">UBICAC.</th>
-                          <th className="px-2 py-1 text-left hidden sm:table-cell">SUBLOTE</th>
-                          <th className="px-2 py-1 text-left hidden lg:table-cell">BARRAS</th>
-                          <th className="px-2 py-1 text-left">ACCION</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredDetalles.map((item) => (
-                          <tr key={item.id} className="border-b">
-                            <td className="px-2 py-1 hidden sm:table-cell">{item.estanque}</td>
-                            <td className="px-2 py-1">{item.descripcion}</td>
-                            <td className="px-2 py-1">{item.talla}</td>
-                            <td className="px-2 py-1 hidden md:table-cell">{item.camarones.toFixed(2)}</td>
-                            <td className="px-2 py-1">{item.cartones.toFixed(2)}</td>
-                            <td className="px-2 py-1 hidden lg:table-cell">{item.kgCarton.toFixed(2)}</td>
-                            <td className="px-2 py-1 hidden lg:table-cell">{item.descabece.toFixed(2)}</td>
-                            <td className="px-2 py-1">{item.totalKg.toFixed(2)}</td>
-                            <td className="px-2 py-1 hidden md:table-cell">{item.ubicacion}</td>
-                            <td className="px-2 py-1 hidden sm:table-cell">{item.subLote}</td>
-                            <td className="px-2 py-1 hidden lg:table-cell">{item.codigo}</td>
-                            <td className="px-2 py-1">
-                              <button
-                                onClick={() => handleDeleteDetalle(item.id)}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-md">
-                  <h4 className="font-medium mb-2">Detalle Kilogramos Sueltos</h4>
-                  <div className="max-h-60 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-blue-200">
-                        <tr>
-                          <th className="px-2 py-1 text-left">TALLA</th>
-                          <th className="px-2 py-1 text-left">KGS</th>
-                          <th className="px-2 py-1 text-left">ACCION</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredTallas.map((item) => (
-                          <tr key={item.id} className="border-b">
-                            <td className="px-2 py-1">{item.talla}</td>
-                            <td className="px-2 py-1">{item.kgs.toFixed(2)}</td>
-                            <td className="px-2 py-1">
-                              <button
-                                onClick={() => handleDeleteTalla(item.id)}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleAddTallaDetalle}
-                      className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-                    >
-                      <Plus className="w-3 h-3 inline mr-1" />
-                      Agregar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClearTallaDetalle}
-                      className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
-                    >
-                      <Trash2 className="w-3 h-3 inline mr-1" />
-                      Limpiar
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Kgs Cart:</label>
-                  <input
-                    type="number"
-                    value={totalKgsCart.toFixed(4)}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kgs Sueltos:</label>
-                  <input
-                    type="number"
-                    value={kgsSueltos.toFixed(4)}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rendimiento:</label>
-                  <div className="flex items-center">
-                    <input
-                      type="number"
-                      value={rendimiento.toFixed(4)}
-                      readOnly
-                      className="flex-1 px-3 px-4 py-2 border border-gray-600 rounded-l-md bg-gray-100"
-                    />
-                    <span className="flex-1 px-3 py-2 bg-gray-200 border border-l-0 border-gray-600 rounded-r-md text-center">%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Observación:</label>
-                <textarea
-                  value={formData.observacion}
-                  onChange={(e) => handleInputChange('observacion', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  rows={4}
-                />
-              </div>
-            </div>
-          </form>
-        </div>
-
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 sm:p-6">
-          <div className="flex justify-end gap-2 max-w-7xl mx-auto">
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Guardar
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                resetForm();
-              }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
-            >
-              Regresar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  function borrarTalla(id: number) {
+    setTallas((prev) => prev.filter((x) => x.id !== id));
   }
 
   return (
-    <div className="flex-1 bg-white flex flex-col min-h-screen">
-      <div className="border-b border-gray-200 bg-blue-50 sticky top-0 z-10">
-        <div className="flex items-center justify-between p-3">
-          <h2 className="text-lg font-medium text-gray-900">Consulta de Empaques</h2>
-          <button className="text-gray-500 hover:text-gray-700">
-            <X className="w-5 h-5" />
-          </button>
+    <div className="flex h-screen bg-slate-100 text-sm">
+
+      {/* Main */}
+      <main className="flex-1 p-4 overflow-auto">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <IconBtn title="Nuevo" className="bg-blue-300 text-black" onClick={onNuevo}>
+              <FilePlus size={16} /> Nuevo
+            </IconBtn>
+            <IconBtn title="Modificar" className="bg-blue-400" onClick={onModificar}>
+              <Edit3 size={16} /> Modificar
+            </IconBtn>
+            <IconBtn title="Imprimir" className="bg-white text-black border-gray-300">
+              <Printer size={16} /> Imprimir
+            </IconBtn>
+            <IconBtn title="ImprimirConSalidas" className="bg-white text-black border-gray-300">
+              <Upload size={16} /> Imprimir Con Salidas
+            </IconBtn>
+            <IconBtn title="SubirNube" className="bg-white text-black border-gray-300">
+              <ArrowDownCircle size={16} /> Subir Nube
+            </IconBtn>
+            <IconBtn title="Eliminar" className="bg-red-500">
+              <Trash2 size={16} /> Eliminar
+            </IconBtn>
+          </div>
+
+          <div>
+            <GhostBtn className="px-3 py-1">Salir</GhostBtn>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 px-3 pb-3 flex-wrap">
-          <button
-            onClick={() => {
-              setShowForm(true);
-              resetForm();
-            }}
-            className="flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo
-          </button>
-          <button
-            onClick={handleModify}
-            disabled={selectedRow === null}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
-          >
-            <Edit className="w-4 h-4" />
-            Modificar
-          </button>
-          <button
-            onClick={handleImprimir}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir
-          </button>
-          <button
-            onClick={handleImprimirConSalidas}
-            className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors text-sm"
-          >
-            <Upload className="w-4 h-4" />
-            Imprimir Con Salidas
-          </button>
-          <button
-            onClick={handleSubirNube}
-            disabled={selectedRow === null}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
-          >
-            <Upload className="w-4 h-4" />
-            Subir Nube
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={selectedRow === null}
-            className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
-          >
-            <Trash2 className="w-4 h-4" />
-            Eliminar
-          </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm"
-          >
-            Salir
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-h-[calc(100vh-200px)]">
-          <table className="w-full table-auto">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr className="border-b border-gray-200">
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16 sm:w-20">ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">FECHA</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16 sm:w-20">LOTE</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 sm:w-32">KILOGRAMOS</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 sm:w-24">CARTONES</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sm:min-w-[120px]">GRANJA</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">OBSERVACIONES</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16 sm:w-20">SUBIDO</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {empaques.map((row, index) => (
-                <tr
-                  key={row.id}
-                  onClick={() => setSelectedRow(index)}
-                  className={`cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  }`}
-                >
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.id}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.fecha}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.lote}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.kilogramos.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.cartones.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.granja}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900 hidden md:table-cell">{row.observaciones}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.subido}</td>
+        {/* Listado principal (tabla simple) */}
+        <Card className="mb-4">
+          <div className="p-2 font-semibold text-slate-700">Consulta de Empaques</div>
+          <div className="overflow-auto max-h-44">
+            <table className="w-full border-t border-slate-200">
+              <thead className="bg-slate-100 text-xs text-slate-600">
+                <tr>
+                  <th className="p-2">ID</th>
+                  <th className="p-2">FECHA</th>
+                  <th className="p-2">LOTE</th>
+                  <th className="p-2">KILOGRAMOS</th>
+                  <th className="p-2">CARTONES</th>
+                  <th className="p-2">GRANJA</th>
+                  <th className="p-2">OBSERVACIONES</th>
+                  <th className="p-2">SUBIDO</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {empaques.map((row, i) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => setSelectedIndex(i)}
+                    className={
+                      "cursor-pointer hover:bg-slate-50 " + (selectedIndex === i ? "bg-blue-50" : "bg-white")
+                    }
+                  >
+                    <td className="p-2">{row.id}</td>
+                    <td className="p-2">{row.fecha}</td>
+                    <td className="p-2">{row.lote}</td>
+                    <td className="p-2">{Number(row.kilos).toLocaleString()}</td>
+                    <td className="p-2">{row.cartones ?? "-"}</td>
+                    <td className="p-2">{row.granja}</td>
+                    <td className="p-2">{row.observ}</td>
+                    <td className="p-2">{row.subido}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Form modal (centrado como la imagen) */}
+        {showForm && (
+          <div className="fixed inset-0 flex items-start justify-center pt-8 z-40">
+            <div className="w-[90%] max-w-[1100px]">
+              <Card className="p-0 overflow-hidden">
+                <div className="bg-blue-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+                  <div className="font-semibold">Empacado</div>
+                  <div className="text-xs text-slate-500">Id Empaque: {form.idEmpaque || "(nuevo)"}</div>
+                </div>
+
+                <div className="p-4 grid grid-cols-12 gap-4">
+                  {/* Left form (col-span-8) */}
+                  <div className="col-span-8 space-y-3">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-3">
+                        <label className="text-xs text-slate-600">Fecha</label>
+                        <Input type="date" value={form.fecha} onChange={(e: any) => setForm({ ...form, fecha: e.target.value })} />
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-xs text-slate-600">Recepción</label>
+                        <Input value={form.recepcion} onChange={(e: any) => setForm({ ...form, recepcion: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Kgs Recibidos</label>
+                        <Input value={form.totalKg} onChange={(e: any) => setForm({ ...form, totalKg: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Lote</label>
+                        <Input value={form.lote} onChange={(e: any) => setForm({ ...form, lote: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <GhostBtn onClick={() => { /* buscar etiquetado (F3) */ }}>
+                          <Search size={14} /> Abrir Etiquetado
+                        </GhostBtn>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">SubLote</label>
+                        <Input value={form.subLote} onChange={(e: any) => setForm({ ...form, subLote: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Estanque</label>
+                        <Input value={form.estanque} onChange={(e: any) => setForm({ ...form, estanque: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Talla</label>
+                        <Select value={form.tamanio} onChange={(e: any) => setForm({ ...form, tamanio: e.target.value })}>
+                          <option>41-50</option>
+                          <option>51-60</option>
+                          <option>61-70</option>
+                        </Select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Cartones</label>
+                        <Input value={form.cartones} onChange={(e: any) => setForm({ ...form, cartones: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Kg X Carton</label>
+                        <Input value={form.kgXCarton} onChange={(e: any) => setForm({ ...form, kgXCarton: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-slate-600">Prod</label>
+                        <Select value={form.prod} onChange={(e: any) => setForm({ ...form, prod: e.target.value })}>
+                          <option>SICABEZA</option>
+                          <option>CONCABEZA</option>
+                        </Select>
+                      </div>
+
+                      <div className="col-span-3">
+                        <label className="text-xs text-slate-600">No Cam</label>
+                        <Input value={form.noCam} onChange={(e: any) => setForm({ ...form, noCam: e.target.value })} />
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-xs text-slate-600">Decabece</label>
+                        <Input value={form.decabece} onChange={(e: any) => setForm({ ...form, decabece: e.target.value })} />
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-xs text-slate-600">Total Kg</label>
+                        <Input value={Number(form.cartones || 0) * Number(form.kgXCarton || 0)} readOnly />
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-xs text-slate-600">Ubicación</label>
+                        <Input value={form.ubicacion} onChange={(e: any) => setForm({ ...form, ubicacion: e.target.value })} />
+                      </div>
+
+                      <div className="col-span-12 flex gap-2 mt-2">
+                        <button onClick={agregarDetalle} className="px-3 py-1 bg-cyan-500 text-white rounded flex items-center gap-2">
+                          <PlusSquare size={16} /> Agregar
+                        </button>
+                        <button onClick={() => { setDetalles([]); }} className="px-3 py-1 bg-rose-500 text-white rounded flex items-center gap-2">
+                          <Trash2 size={16} /> Limpiar
+                        </button>
+                        <div className="ml-auto text-xs text-slate-500">{/* barcode placeholder */}</div>
+                      </div>
+
+                      {/* tabla de detalles */}
+                      <div className="col-span-12">
+                        <div className="border rounded bg-white max-h-36 overflow-auto">
+                          <table className="w-full text-xs">
+                            <thead className="bg-slate-100">
+                              <tr>
+                                <th className="p-1">ESTANQUE</th>
+                                <th className="p-1">DESC</th>
+                                <th className="p-1">TALLA</th>
+                                <th className="p-1">CARTONES</th>
+                                <th className="p-1">KGxCART</th>
+                                <th className="p-1">DESCAB.</th>
+                                <th className="p-1">TOTAL KG</th>
+                                <th className="p-1">UBICAC.</th>
+                                <th className="p-1">SUBLOTE</th>
+                                <th className="p-1">BARRAS</th>
+                                <th className="p-1">ACCION</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {detalles.map((d) => (
+                                <tr key={d.id} className="even:bg-slate-50">
+                                  <td className="p-1">{d.estanque}</td>
+                                  <td className="p-1">{d.descripcion}</td>
+                                  <td className="p-1">{d.talla}</td>
+                                  <td className="p-1">{d.cartones.toFixed(2)}</td>
+                                  <td className="p-1">{d.kgCarton.toFixed(2)}</td>
+                                  <td className="p-1">{d.descabece.toFixed(2)}</td>
+                                  <td className="p-1">{d.totalKg.toFixed(4)}</td>
+                                  <td className="p-1">{d.ubicacion}</td>
+                                  <td className="p-1">{d.subLote}</td>
+                                  <td className="p-1">{d.barras}</td>
+                                  <td className="p-1">
+                                    <button onClick={() => borrarDetalle(d.id)} className="text-red-600">Eliminar</button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {detalles.length === 0 && (
+                                <tr><td colSpan={11} className="p-2 text-center text-slate-400">Sin detalles</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-600">Observacion</label>
+                      <textarea value={form.observacion} onChange={(e: any) => setForm({ ...form, observacion: e.target.value })} className="w-full border rounded p-2 text-sm" rows={3} />
+                    </div>
+                  </div>
+
+                  {/* Right side - tallas sueltas */}
+                  <div className="col-span-4">
+                    <Card className="p-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium">Detalle Kilogramos Sueltos</div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs text-slate-600">Talla</label>
+                          <Select value={form.tamanio} onChange={(e: any) => setForm({ ...form, tamanio: e.target.value })}>
+                            <option>41-50</option>
+                            <option>51-60</option>
+                            <option>61-70</option>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-600">Kgs</label>
+                          <Input value={form.totalKg} onChange={(e: any) => setForm({ ...form, totalKg: e.target.value })} />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button onClick={agregarTallaSueltas} className="px-3 py-1 bg-cyan-500 text-white rounded flex items-center gap-2">
+                            <PlusSquare size={16} /> Agregar
+                          </button>
+                          <button onClick={() => setTallas([])} className="px-3 py-1 bg-rose-500 text-white rounded flex items-center gap-2">
+                            <Trash2 size={16} /> Limpiar
+                          </button>
+                        </div>
+
+                        <div className="border rounded overflow-auto max-h-36 bg-white">
+                          <table className="w-full text-sm">
+                            <thead className="bg-slate-100 text-xs">
+                              <tr>
+                                <th className="p-2">TALLA</th>
+                                <th className="p-2">KGS</th>
+                                <th className="p-2">ACCION</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tallas.map((t) => (
+                                <tr key={t.id} className="even:bg-slate-50">
+                                  <td className="p-2">{t.talla}</td>
+                                  <td className="p-2">{t.kgs.toFixed(4)}</td>
+                                  <td className="p-2"><button onClick={() => borrarTalla(t.id)} className="text-red-600">Eliminar</button></td>
+                                </tr>
+                              ))}
+                              {tallas.length === 0 && <tr><td colSpan={3} className="p-2 text-center text-slate-400">Sin tallas</td></tr>}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="mt-4 text-xs space-y-1">
+                          <div className="flex justify-between"><span>Total Kgs Cart:</span><strong>{totalKgsCart.toFixed(4)}</strong></div>
+                          <div className="flex justify-between"><span>Kgs Sueltos:</span><strong>{totalKgsSueltos.toFixed(4)}</strong></div>
+                          <div className="flex justify-between"><span>Rendimiento:</span><strong>{rendimiento.toFixed(4)} %</strong></div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                </div>
+
+                {/* footer botones grandes */}
+                <div className="p-3 border-t flex items-center gap-3 justify-end bg-slate-50">
+                  <button onClick={onGuardar} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded shadow">
+                    <ArrowDownCircle size={18} /> Guardar
+                  </button>
+                  <button onClick={() => setShowForm(false)} className="flex items-center gap-2 px-4 py-2 bg-gray-300 rounded">
+                    <ArrowLeftCircle size={18} /> Regresar
+                  </button>
+                </div>
+
+              </Card>
+            </div>
+          </div>
+        )}
+
+      </main>
     </div>
   );
-};
-
-export default Empaques;
+}
