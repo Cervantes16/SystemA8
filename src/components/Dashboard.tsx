@@ -40,7 +40,8 @@ export default function Dashboard() {
     clasificacion: 'Clasificacion',
     empaque: 'RegistrarEmpaque',
     //empaque: 'Empaque',
-    etiquetas: 'GeneracionEtiquetas',
+    //etiquetas: 'GeneracionEtiquetas',
+    etiquetas: 'GenerarEtiquetas',
   };
 
   // Check if user has permission for the active section
