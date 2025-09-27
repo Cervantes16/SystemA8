@@ -48,7 +48,7 @@ interface DeleteForm {
 
 // Opciones
 const granjas = [
-  { id: 1, nombre: "AGUILAS" },
+  { id: 69, nombre: "AGUILAS" }, // Updated IdGranja to 069
   { id: 2, nombre: "SAN PEDRO" },
 ];
 
@@ -69,8 +69,8 @@ const GeneracionEtiquetas: React.FC = () => {
     diaJuliano: "263",
     lote: "1",
     sublote: "1",
-    granja: 1,
-    talla: 1,
+    granja: 69, // Updated to match IdGranja 069
+    talla: 2, // Set to 51-60 for testing
     camarones: "1.00",
     presentacionKgs: "20.000",
     presentacionLbs: "44.092",
@@ -95,21 +95,21 @@ const GeneracionEtiquetas: React.FC = () => {
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
-    "0001001012622025020010001",
-    "0001001012622025020010002",
-    "0001001012622025020010003",
-    "0001001012622025020010004",
-    "0001001012622025020010005",
-    "0001001012622025020020001",
-    "0001001012622025020020002",
-    "0001002012622025020010001",
-    "0001002012622025020010002",
-    "0001002012622025020010003",
-    "0001002012622025020010004",
-    "0001002012622025020010005",
-    "0001002012622025020010006",
-    "0001002012622025020010007",
-    "0001002012622025020010008",
+    "0001009012622025020010001", // Updated IdGranja to 069
+    "0001009012622025020010002",
+    "0001009012622025020010003",
+    "0001009012622025020010004",
+    "0001009012622025020010005",
+    "0001009012622025020020001",
+    "0001009012622025020020002",
+    "0001009012622025020010001",
+    "0001009012622025020010002",
+    "0001009012622025020010003",
+    "0001009012622025020010004",
+    "0001009012622025020010005",
+    "0001009012622025020010006",
+    "0001009012622025020010007",
+    "0001009012622025020010008",
   ]);
 
   const [eliminados, setEliminados] = useState<string[]>([]);
@@ -170,10 +170,12 @@ const GeneracionEtiquetas: React.FC = () => {
 
   // Obtener el próximo consecutivo para un lote, talla y producto
   const getNextFolio = (lote: string, tallaId: number, producto: string): number => {
-    const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
-    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = String(tallaId).padStart(2, "0");
-    const prefix = `${lote.padStart(4, "0")}${String(formData.granja).padStart(3, "0")}${idTalla}${formData.diaJuliano}${new Date(formData.fechaEmpaque).getFullYear()}${String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0")}${idProducto}`;
+    const anio = new Date(formData.fechaEmpaque).getFullYear();
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
+    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${anio}${kilosFormateados}${idProducto}`;
 
     const matchingBarcodes = impresos.filter((barcode) => barcode.startsWith(prefix));
     if (matchingBarcodes.length === 0) return 1;
@@ -258,8 +260,8 @@ const GeneracionEtiquetas: React.FC = () => {
     const newDetalleEtiquetas = [...detalleEtiquetas];
     const deletedBarcodes: string[] = [];
 
-    // Generate all barcodes for matching entries
-    const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
+    // Generate barcode prefix for deletion
+    const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
