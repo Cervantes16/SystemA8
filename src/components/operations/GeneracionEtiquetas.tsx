@@ -48,7 +48,7 @@ interface DeleteForm {
 
 // Opciones
 const granjas = [
-  { id: 1, nombre: "AGUILAS" }, // IdGranja set to 1 (001)
+  { id: 1, nombre: "AGUILAS" },
   { id: 2, nombre: "SAN PEDRO" },
 ];
 
@@ -65,11 +65,11 @@ const pisos = ["1", "2", "3"];
 
 const GeneracionEtiquetas: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
-    fechaEmpaque: "2025-09-20",
-    diaJuliano: "263",
+    fechaEmpaque: "2025-09-27",
+    diaJuliano: "270",
     lote: "1",
     sublote: "1",
-    granja: 1, // IdGranja 001
+    granja: 1,
     talla: 2, // 51-60 for testing
     camarones: "1.00",
     presentacionKgs: "20.000",
@@ -89,27 +89,27 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
-    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
-    { id: 3, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+    { id: 1, fecha: "27/09/2025", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "27/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
+    { id: 3, fecha: "27/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
-    "0001001012632025020010001", // Lote:1, IdGranja:001, IdTalla:01, DiaJuliano:263, Año:2025, Kgs:020, IdProducto:01, Folio:0001
-    "0001001012632025020010002",
-    "0001001012632025020010003",
-    "0001001012632025020010004",
-    "0001001012632025020010005",
-    "0001001012632025020020001", // CON_CABEZA, IdProducto:02
-    "0001001012632025020020002",
-    "0001001022632025020010001", // Talla:51-60, IdTalla:02
-    "0001001022632025020010002",
-    "0001001022632025020010003",
-    "0001001022632025020010004",
-    "0001001022632025020010005",
-    "0001001022632025020010006",
-    "0001001022632025020010007",
-    "0001001022632025020010008",
+    "000100101270202520010001",
+    "000100101270202520010002",
+    "000100101270202520010003",
+    "000100101270202520010004",
+    "000100101270202520010005",
+    "000100101270202520020001",
+    "000100101270202520020002",
+    "000100102270202520010001",
+    "000100102270202520010002",
+    "000100102270202520010003",
+    "000100102270202520010004",
+    "000100102270202520010005",
+    "000100102270202520010006",
+    "000100102270202520010007",
+    "000100102270202520010008",
   ]);
 
   const [eliminados, setEliminados] = useState<string[]>([]);
@@ -140,7 +140,7 @@ const GeneracionEtiquetas: React.FC = () => {
     }));
   }, [formData.bahia, formData.seccion, formData.fondo, formData.piso]);
 
-  // Manejar cambios en inputs y sincronizar Kgs ↔ Lbs
+  // Manejar cambios en inputs y sincronizar Kgs <-> Lbs
   const handleInputChange = (field: keyof FormData, value: string | boolean | number) => {
     setFormData((prev) => {
       let updated = { ...prev, [field]: value };
@@ -173,7 +173,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = String(tallaId).padStart(2, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(2, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${anio}${kilosFormateados}${idProducto}`;
 
@@ -191,7 +191,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const startFolio = getNextFolio(formData.lote, formData.talla, formData.producto);
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(2, "0");
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
 
     return (
@@ -249,10 +249,10 @@ const GeneracionEtiquetas: React.FC = () => {
           detalle.producto === producto
       )
       .sort((a, b) => b.id - a.id);
-    const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+    const totalAvailableCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
 
-    if (totalAvailableCartons < cantidadEliminar) {
-      alert(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
+    if (totalAvailableCartones < cantidadEliminar) {
+      alert(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartones}`);
       return;
     }
 
@@ -264,7 +264,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
+    const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(2, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${anio}${kilosFormateados}${idProducto}`;
 
