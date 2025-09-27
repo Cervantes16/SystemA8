@@ -22,6 +22,11 @@ interface FormData {
   consecutivo: number;
   numeroCartones: number;
   numeroEtiquetas: number;
+  bahia: string; // New field for warehouse position
+  seccion: string; // New field for warehouse position
+  fondo: string; // New field for warehouse position
+  piso: string; // New field for warehouse position
+  posicion: string; // Combined position (e.g., "1-1-A-1")
 }
 
 interface DetalleEtiqueta {
@@ -30,6 +35,9 @@ interface DetalleEtiqueta {
   sLote: string;
   talla: string;
   cartones: number;
+  kgs: number;
+  producto: string;
+  posicion: string; // New field for warehouse position
 }
 
 // Opciones
@@ -44,18 +52,23 @@ const tallas = [
   { id: 3, rango: "61-70" },
 ];
 
+const bahias = Array.from({ length: 10 }, (_, i) => String(i + 1)); // 1 to 10
+const secciones = Array.from({ length: 5 }, (_, i) => String(i + 1)); // 1 to 5
+const fondos = ["A", "B", "C"];
+const pisos = ["1", "2", "3"];
+
 const GeneracionEtiquetas: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     fechaEmpaque: "2025-09-20",
     diaJuliano: "263",
-    lote: "2",
+    lote: "1",
     sublote: "1",
-    granja: 1, // ID
-    talla: 1,  // ID
+    granja: 1,
+    talla: 1,
     camarones: "1.00",
-    presentacionKgs: "0.000",
-    presentacionLbs: "0.000",
-    producto: "CAMARON",
+    presentacionKgs: "20.000",
+    presentacionLbs: "44.092",
+    producto: "SIN_CABEZA",
     uniformidad: "0.000",
     metabisulfato: true,
     horaEmpaque: "12:30",
@@ -64,11 +77,17 @@ const GeneracionEtiquetas: React.FC = () => {
     consecutivo: 1,
     numeroCartones: 1,
     numeroEtiquetas: 1,
+    bahia: "1",
+    seccion: "1",
+    fondo: "A",
+    piso: "1",
+    posicion: "1-1-A-1",
   });
 
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
-    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 162 },
-    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 100 },
+    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 3, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
+    { id: 3, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([]);
@@ -82,6 +101,14 @@ const GeneracionEtiquetas: React.FC = () => {
     const diaJuliano = Math.floor(diff / oneDay);
     setFormData((prev) => ({ ...prev, diaJuliano: String(diaJuliano).padStart(3, "0") }));
   }, [formData.fechaEmpaque]);
+
+  // Actualizar posición cuando cambian bahia, seccion, fondo o piso
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      posicion: `${prev.bahia}-${prev.seccion}${prev.fondo}${prev.piso}`,
+    }));
+  }, [formData.bahia, formData.seccion, formData.fondo, formData.piso]);
 
   // Manejar cambios en inputs y sincronizar Kgs ↔ Lbs
   const handleInputChange = (field: keyof FormData, value: string | boolean | number) => {
@@ -109,7 +136,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const numeroEtiqueta = String(formData.consecutivo + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     
-    // aquí supongo que cada cartón es formData.presentacionKgs kilos exactos
+    // Usar presentacionKgs para kilosFormateados
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
 
     // producto: 01 = sin cabeza, 02 = con cabeza
@@ -132,23 +159,42 @@ const GeneracionEtiquetas: React.FC = () => {
     // Actualizar el consecutivo
     const nuevoConsecutivo = formData.consecutivo + formData.numeroCartones;
     setFormData((prev) => ({ ...prev, consecutivo: nuevoConsecutivo }));
+    // Agregar nueva entrada a detalleEtiquetas
+    const nuevaEntrada: DetalleEtiqueta = {
+      id: detalleEtiquetas.length + 1,
+      fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES"),
+      sLote: formData.sublote,
+      talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
+      cartones: formData.numeroCartones,
+      kgs: parseFloat(formData.presentacionKgs),
+      producto: formData.producto,
+      posicion: formData.posicion,
+    };
+    setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
     alert(
-      `Se imprimirán ${formData.numeroEtiquetas} Etiqueta(s), para un Total de ${formData.numeroCartones} Cartone(s).`
+      `Se imprimirán ${formData.numeroEtiquetas} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`
     );
   };
 
-  // Aggregating cartons by sLote and talla
-  const totalPorLoteYTalla = detalleEtiquetas.reduce((acc, detalle) => {
-    const key = `${detalle.sLote}-${detalle.talla}`;
+  // Aggregating cartons by sLote, talla, producto, and posicion
+  const totalPorLoteTallaProductoPosicion = detalleEtiquetas.reduce((acc, detalle) => {
+    const key = `${detalle.sLote}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
     if (!acc[key]) {
-      acc[key] = { lote: detalle.sLote, talla: detalle.talla, cartones: 0 };
+      acc[key] = {
+        lote: detalle.sLote,
+        talla: detalle.talla,
+        producto: detalle.producto,
+        posicion: detalle.posicion,
+        cartones: 0,
+        kgs: detalle.kgs,
+      };
     }
     acc[key].cartones += detalle.cartones;
     return acc;
-  }, {} as Record<string, { lote: string; talla: string; cartones: number }>);
+  }, {} as Record<string, { lote: string; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
 
   // Convert object to array for rendering
-  const registros = Object.values(totalPorLoteYTalla);
+  const registros = Object.values(totalPorLoteTallaProductoPosicion);
 
   return (
     <div className="flex-1 bg-gray-100 min-h-screen overflow-y-auto p-4">
@@ -295,6 +341,71 @@ const GeneracionEtiquetas: React.FC = () => {
               />
               <span className="text-sm">Metabisulfato</span>
             </div>
+
+            {/* Posición en Bodega */}
+            <div className="grid grid-cols-4 gap-3 text-sm mt-3">
+              <div>
+                <label>Bahía</label>
+                <select
+                  value={formData.bahia}
+                  onChange={(e) => handleInputChange("bahia", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {bahias.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Sección</label>
+                <select
+                  value={formData.seccion}
+                  onChange={(e) => handleInputChange("seccion", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {secciones.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Fondo</label>
+                <select
+                  value={formData.fondo}
+                  onChange={(e) => handleInputChange("fondo", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {fondos.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Piso</label>
+                <select
+                  value={formData.piso}
+                  onChange={(e) => handleInputChange("piso", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {pisos.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 text-sm">
+              <label>Posición</label>
+              <input
+                type="text"
+                value={formData.posicion}
+                readOnly
+                className="w-full border px-2 py-1 rounded bg-gray-100"
+              />
+            </div>
           </div>
 
           {/* VISTA PREVIA CON SCROLL */}
@@ -328,22 +439,26 @@ const GeneracionEtiquetas: React.FC = () => {
 
         {/* RIGHT PANEL */}
         <div className="space-y-4">
-          {/* Total Etiquetas por Lote y Talla */}
+          {/* Total Etiquetas por Lote, Talla, Producto y Posición */}
           <div className="bg-white rounded shadow border">
             <div className="bg-blue-100 p-2 font-bold text-sm text-gray-700">
               Registro:
             </div>
             <div className="divide-y text-sm">
-              <div className="grid grid-cols-3 text-center p-2 font-bold">
+              <div className="grid grid-cols-6 text-center p-2 font-bold">
                 <span>Lote</span>
                 <span>Talla</span>
                 <span>Cartones</span>
+                <span>(Kgs)</span>
+                <span>Producto</span>
               </div>
               {registros.map((registro, idx) => (
-                <div key={idx} className="grid grid-cols-3 text-center p-2">
+                <div key={idx} className="grid grid-cols-6 text-center p-2">
                   <span>{registro.lote}</span>
                   <span>{registro.talla}</span>
                   <span>{registro.cartones}</span>
+                  <span>{registro.kgs}</span>
+                  <span>{registro.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
                 </div>
               ))}
             </div>
@@ -391,8 +506,8 @@ const GeneracionEtiquetas: React.FC = () => {
           </div>
           {/* MENSAJE EN ROJO */}
           <div className="bg-red-100 text-center p-3 font-bold text-red-700 rounded shadow">
-            Se Imprimirán {formData.numeroEtiquetas} Etiqueta(s), para un Total de{" "}
-            {formData.numeroCartones} Carton(es).
+            Se Imprimirán {formData.numeroEtiquetas} Etiquetas, para un Total de{" "}
+            {formData.numeroCartones} Cartones.
           </div>
 
           {/* BOTONES */}
