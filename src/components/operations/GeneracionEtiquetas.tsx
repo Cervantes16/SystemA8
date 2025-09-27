@@ -82,7 +82,7 @@ const GeneracionEtiquetas: React.FC = () => {
     horaEmpaque: "12:30",
     nombrePlanta: "PLANTA LAS AGUILAS",
     zDesigner: "ZDesigner ZD220-203dpi ZPL",
-    consecutivo: 6, // Start after 0005 to match example
+    consecutivo: 6,
     numeroCartones: 1,
     numeroEtiquetas: 1,
     bahia: "1",
@@ -210,7 +210,7 @@ const GeneracionEtiquetas: React.FC = () => {
       return;
     }
 
-    // Find matching entries
+    // Find matching entries and calculate total available cartons
     const matchingEntries = detalleEtiquetas
       .filter(
         (detalle) =>
@@ -219,21 +219,30 @@ const GeneracionEtiquetas: React.FC = () => {
           detalle.producto === producto
       )
       .sort((a, b) => b.id - a.id); // Sort by id descending
+    const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+
+    if (totalAvailableCartons < cantidadEliminar) {
+      alert(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
+      return;
+    }
 
     let remainingToDelete = cantidadEliminar;
     const newDetalleEtiquetas = [...detalleEtiquetas];
     const deletedBarcodes: string[] = [];
 
-    // Generate barcodes for matching entries
-    const matchingBarcodes = matchingEntries.flatMap((entry) => {
+    // Generate all barcodes for matching entries
+    let folioCounter = matchingEntries.reduce((max, entry) => Math.max(max, entry.id + entry.cartones - 1), 0);
+    const matchingBarcodes = [];
+    for (const entry of matchingEntries.sort((a, b) => b.id - a.id)) {
       const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
       const idTalla = tallas.find((t) => t.rango === entry.talla)?.id.toString().padStart(2, "0") || "01";
       const anio = new Date(formData.fechaEmpaque).getFullYear();
       const kilosFormateados = String(parseInt(String(entry.kgs), 10)).padStart(3, "0");
       const idProducto = entry.producto === "SIN_CABEZA" ? "01" : "02";
-      return Array.from({ length: entry.cartones }, (_, i) => {
-        const numeroEtiqueta = String(entry.id + i).padStart(4, "0");
-        return (
+
+      for (let i = 0; i < entry.cartones; i++) {
+        const numeroEtiqueta = String(folioCounter).padStart(4, "0");
+        const barcode =
           entry.sLote.padStart(4, "0") +
           idGranja +
           idTalla +
@@ -241,31 +250,27 @@ const GeneracionEtiquetas: React.FC = () => {
           anio +
           kilosFormateados +
           idProducto +
-          numeroEtiqueta
-        );
-      });
-    }).sort((a, b) => parseInt(b.slice(-4)) - parseInt(a.slice(-4))); // Sort by folio descending
-
-    // Remove barcodes and update detalleEtiquetas
-    for (let i = 0; i < matchingEntries.length && remainingToDelete > 0; i++) {
-      const entry = matchingEntries[i];
-      const entryIndex = newDetalleEtiquetas.findIndex((e) => e.id === entry.id);
-      if (entry.cartones <= remainingToDelete) {
-        // Remove entire entry
-        newDetalleEtiquetas.splice(entryIndex, 1);
-        deletedBarcodes.push(...matchingBarcodes.splice(0, entry.cartones));
-        remainingToDelete -= entry.cartones;
-      } else {
-        // Reduce cartones
-        newDetalleEtiquetas[entryIndex].cartones -= remainingToDelete;
-        deletedBarcodes.push(...matchingBarcodes.splice(0, remainingToDelete));
-        remainingToDelete = 0;
+          numeroEtiqueta;
+        matchingBarcodes.push({ barcode, entryId: entry.id });
+        folioCounter--;
       }
     }
+    // Sort barcodes by folio number descending
+    matchingBarcodes.sort((a, b) => parseInt(b.barcode.slice(-4)) - parseInt(a.barcode.slice(-4)));
 
-    if (remainingToDelete > 0) {
-      alert("No hay suficientes cartones para eliminar la cantidad especificada.");
-      return;
+    // Delete cartons and collect barcodes
+    for (let i = 0; i < matchingBarcodes.length && remainingToDelete > 0; i++) {
+      const { entryId, barcode } = matchingBarcodes[i];
+      const entryIndex = newDetalleEtiquetas.findIndex((e) => e.id === entryId);
+      if (entryIndex !== -1) {
+        if (newDetalleEtiquetas[entryIndex].cartones > 1) {
+          newDetalleEtiquetas[entryIndex].cartones -= 1;
+        } else {
+          newDetalleEtiquetas.splice(entryIndex, 1);
+        }
+        deletedBarcodes.push(barcode);
+        remainingToDelete--;
+      }
     }
 
     setDetalleEtiquetas(newDetalleEtiquetas);
@@ -300,7 +305,7 @@ const GeneracionEtiquetas: React.FC = () => {
   const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
   const totalKgs = registros.reduce((sum, registro) => sum + registro.cartones * registro.kgs, 0);
 
-  // Get unique lotes and tallas for delete form
+  // Get unique lotes, tallas, and productos for delete form
   const uniqueLotes = Array.from(new Set(detalleEtiquetas.map((d) => d.sLote)));
   const uniqueTallas = Array.from(new Set(detalleEtiquetas.map((d) => d.talla)));
   const uniqueProductos = Array.from(new Set(detalleEtiquetas.map((d) => d.producto)));
