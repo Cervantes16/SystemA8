@@ -63,7 +63,6 @@ const secciones = Array.from({ length: 5 }, (_, i) => String(i + 1));
 const fondos = ["A", "B", "C"];
 const pisos = ["1", "2", "3"];
 
-
 const GeneracionEtiquetas: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     fechaEmpaque: "2025-09-27",
@@ -126,7 +125,7 @@ const GeneracionEtiquetas: React.FC = () => {
   // Actualizar día Juliano cuando cambia la fecha
   useEffect(() => {
     const date = new Date(formData.fechaEmpaque);
-    // Normalizar a medianoche UTC
+    // Normalizar a medianoche UTC para cálculo consistente
     const normalizedDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const startOfYear = new Date(Date.UTC(date.getUTCFullYear(), 0, 1)); // 1 de enero
     const diff = normalizedDate.getTime() - startOfYear.getTime();
@@ -174,7 +173,7 @@ const GeneracionEtiquetas: React.FC = () => {
   // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
   const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string): number => {
     const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
-    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES");
+    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" });
     const matchingEntries = detalleEtiquetas.filter(
       (detalle) =>
         detalle.sLote === lote &&
@@ -200,7 +199,7 @@ const GeneracionEtiquetas: React.FC = () => {
     );
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0"); // Cambiado a 3 dígitos
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
 
     return (
@@ -221,13 +220,13 @@ const GeneracionEtiquetas: React.FC = () => {
       return;
     }
 
-    // Add new barcodes to impresos
+    // Agregar nuevos códigos de barras a impresos
     setImpresos((prev) => [...prev, ...codigos]);
 
-    // Add new entry to detalleEtiquetas
+    // Agregar nueva entrada a detalleEtiquetas
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleEtiquetas.length + 1,
-      fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES"),
+      fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" }),
       sLote: formData.sublote,
       talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
       cartones: formData.numeroCartones,
@@ -249,8 +248,8 @@ const GeneracionEtiquetas: React.FC = () => {
       return;
     }
 
-    // Find matching entries and calculate total available cartons
-    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES");
+    // Encontrar entradas coincidentes y calcular cartones disponibles
+    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" });
     const matchingEntries = detalleEtiquetas
       .filter(
         (detalle) =>
@@ -276,7 +275,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
     const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(2, "0");
+    const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${anio}${kilosFormateados}${idProducto}`;
 
