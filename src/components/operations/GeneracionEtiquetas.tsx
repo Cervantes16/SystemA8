@@ -63,6 +63,7 @@ const secciones = Array.from({ length: 5 }, (_, i) => String(i + 1));
 const fondos = ["A", "B", "C"];
 const pisos = ["1", "2", "3"];
 
+
 const GeneracionEtiquetas: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     fechaEmpaque: "2025-09-27",
@@ -95,21 +96,21 @@ const GeneracionEtiquetas: React.FC = () => {
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
-    "000100101270202520010001",
-    "000100101270202520010002",
-    "000100101270202520010003",
-    "000100101270202520010004",
-    "000100101270202520010005",
-    "000100101270202520020001",
-    "000100101270202520020002",
-    "000100102270202520010001",
-    "000100102270202520010002",
-    "000100102270202520010003",
-    "000100102270202520010004",
-    "000100102270202520010005",
-    "000100102270202520010006",
-    "000100102270202520010007",
-    "000100102270202520010008",
+    "0001001012702025020010001",
+    "0001001012702025020010002",
+    "0001001012702025020010003",
+    "0001001012702025020010004",
+    "0001001012702025020010005",
+    "0001001012702025020020001",
+    "0001001012702025020020002",
+    "0001001022702025020010001",
+    "0001001022702025020010002",
+    "0001001022702025020010003",
+    "0001001022702025020010004",
+    "0001001022702025020010005",
+    "0001001022702025020010006",
+    "0001001022702025020010007",
+    "0001001022702025020010008",
   ]);
 
   const [eliminados, setEliminados] = useState<string[]>([]);
@@ -125,10 +126,12 @@ const GeneracionEtiquetas: React.FC = () => {
   // Actualizar día Juliano cuando cambia la fecha
   useEffect(() => {
     const date = new Date(formData.fechaEmpaque);
-    const startOfYear = new Date(date.getFullYear(), 0, 0);
-    const diff = date.getTime() - startOfYear.getTime();
+    // Normalizar a medianoche UTC
+    const normalizedDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const startOfYear = new Date(Date.UTC(date.getUTCFullYear(), 0, 1)); // 1 de enero
+    const diff = normalizedDate.getTime() - startOfYear.getTime();
     const oneDay = 1000 * 60 * 60 * 24;
-    const diaJuliano = Math.floor(diff / oneDay);
+    const diaJuliano = Math.floor(diff / oneDay) + 1; // Sumar 1 para que 1 de enero sea día 1
     setFormData((prev) => ({ ...prev, diaJuliano: String(diaJuliano).padStart(3, "0") }));
   }, [formData.fechaEmpaque]);
 
@@ -168,15 +171,17 @@ const GeneracionEtiquetas: React.FC = () => {
     setDeleteForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Obtener el próximo consecutivo para un lote, talla, producto y kgs
-  const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number): number => {
+  // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
+  const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string): number => {
     const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
+    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES");
     const matchingEntries = detalleEtiquetas.filter(
       (detalle) =>
         detalle.sLote === lote &&
         detalle.talla === tallaRango &&
         detalle.producto === producto &&
-        detalle.kgs === kgs
+        detalle.kgs === kgs &&
+        detalle.fecha === fechaFormato
     );
     const totalCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
     return totalCartones + 1;
@@ -190,11 +195,12 @@ const GeneracionEtiquetas: React.FC = () => {
       formData.lote,
       formData.talla,
       formData.producto,
-      parseFloat(formData.presentacionKgs)
+      parseFloat(formData.presentacionKgs),
+      formData.diaJuliano
     );
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(2, "0");
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
 
     return (
@@ -244,13 +250,15 @@ const GeneracionEtiquetas: React.FC = () => {
     }
 
     // Find matching entries and calculate total available cartons
+    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES");
     const matchingEntries = detalleEtiquetas
       .filter(
         (detalle) =>
           detalle.sLote === lote &&
           detalle.talla === talla &&
           detalle.producto === producto &&
-          detalle.kgs === parseFloat(formData.presentacionKgs)
+          detalle.kgs === parseFloat(formData.presentacionKgs) &&
+          detalle.fecha === fechaFormato
       )
       .sort((a, b) => b.id - a.id);
     const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
@@ -264,8 +272,8 @@ const GeneracionEtiquetas: React.FC = () => {
     const newDetalleEtiquetas = [...detalleEtiquetas];
     const deletedBarcodes: string[] = [];
 
-    // Generate barcode prefix for deletion
-    const idGranja = String(formData.granja).padStart(3, "0");
+    // Generate all barcodes for matching entries
+    const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
     const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(2, "0");
@@ -309,9 +317,10 @@ const GeneracionEtiquetas: React.FC = () => {
 
   // Aggregating cartons by sLote, talla, producto, and posicion
   const totalPorLoteTallaProductoPosicion = detalleEtiquetas.reduce((acc, detalle) => {
-    const key = `${detalle.sLote}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
+    const key = `${detalle.fecha}-${detalle.sLote}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
     if (!acc[key]) {
       acc[key] = {
+        fecha: detalle.fecha,
         lote: detalle.sLote,
         talla: detalle.talla,
         producto: detalle.producto,
@@ -322,7 +331,7 @@ const GeneracionEtiquetas: React.FC = () => {
     }
     acc[key].cartones += detalle.cartones;
     return acc;
-  }, {} as Record<string, { lote: string; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
+  }, {} as Record<string, { fecha: string; lote: string; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
 
   // Convert object to array for rendering
   const registros = Object.values(totalPorLoteTallaProductoPosicion);
@@ -685,7 +694,8 @@ const GeneracionEtiquetas: React.FC = () => {
               Registro:
             </div>
             <div className="divide-y text-sm">
-              <div className="grid grid-cols-6 text-center p-2 font-bold">
+              <div className="grid grid-cols-7 text-center p-2 font-bold">
+                <span>Fecha</span>
                 <span>Lote</span>
                 <span>Talla</span>
                 <span>Cartones</span>
@@ -694,7 +704,8 @@ const GeneracionEtiquetas: React.FC = () => {
                 <span>Posición</span>
               </div>
               {registros.map((registro, idx) => (
-                <div key={idx} className="grid grid-cols-6 text-center p-2">
+                <div key={idx} className="grid grid-cols-7 text-center p-2">
+                  <span>{registro.fecha}</span>
                   <span>{registro.lote}</span>
                   <span>{registro.talla}</span>
                   <span>{registro.cartones}</span>
@@ -703,7 +714,8 @@ const GeneracionEtiquetas: React.FC = () => {
                   <span>{registro.posicion}</span>
                 </div>
               ))}
-              <div className="grid grid-cols-6 text-center p-2 font-bold">
+              <div className="grid grid-cols-7 text-center p-2 font-bold">
+                <span></span>                
                 <span></span>
                 <span></span>
                 <span>Total Cartones: {totalCartones}</span>
