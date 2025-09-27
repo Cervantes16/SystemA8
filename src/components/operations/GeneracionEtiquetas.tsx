@@ -21,7 +21,6 @@ interface FormData {
   zDesigner: string;
   consecutivo: number;
   numeroCartones: number;
-  numeroEtiquetas: number;
   bahia: string;
   seccion: string;
   fondo: string;
@@ -84,7 +83,6 @@ const GeneracionEtiquetas: React.FC = () => {
     zDesigner: "ZDesigner ZD220-203dpi ZPL",
     consecutivo: 6,
     numeroCartones: 1,
-    numeroEtiquetas: 1,
     bahia: "1",
     seccion: "1",
     fondo: "A",
@@ -153,6 +151,10 @@ const GeneracionEtiquetas: React.FC = () => {
         updated.presentacionKgs = (lbs / 2.20462).toFixed(3);
       }
 
+      if (field === "numeroCartones") {
+        updated.numeroCartones = parseInt(String(value)) || 0;
+      }
+
       return updated;
     });
   };
@@ -184,9 +186,15 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const handlePrint = () => {
+    if (formData.numeroCartones <= 0) {
+      alert("Por favor, ingrese un número válido de etiquetas/cartones.");
+      return;
+    }
+
+    // Add new barcodes to impresos
     setImpresos((prev) => [...prev, ...codigos]);
-    const nuevoConsecutivo = formData.consecutivo + formData.numeroCartones;
-    setFormData((prev) => ({ ...prev, consecutivo: nuevoConsecutivo }));
+
+    // Add new entry to detalleEtiquetas
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleEtiquetas.length + 1,
       fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES"),
@@ -198,8 +206,13 @@ const GeneracionEtiquetas: React.FC = () => {
       posicion: formData.posicion,
     };
     setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
+
+    // Update consecutivo
+    const nuevoConsecutivo = formData.consecutivo + formData.numeroCartones;
+    setFormData((prev) => ({ ...prev, consecutivo: nuevoConsecutivo }));
+
     alert(
-      `Se imprimirán ${formData.numeroEtiquetas} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`
+      `Se imprimirán ${formData.numeroCartones} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`
     );
   };
 
@@ -218,7 +231,7 @@ const GeneracionEtiquetas: React.FC = () => {
           detalle.talla === talla &&
           detalle.producto === producto
       )
-      .sort((a, b) => b.id - a.id); // Sort by id descending
+      .sort((a, b) => b.id - a.id);
     const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
 
     if (totalAvailableCartons < cantidadEliminar) {
@@ -255,7 +268,6 @@ const GeneracionEtiquetas: React.FC = () => {
         folioCounter--;
       }
     }
-    // Sort barcodes by folio number descending
     matchingBarcodes.sort((a, b) => parseInt(b.barcode.slice(-4)) - parseInt(a.barcode.slice(-4)));
 
     // Delete cartons and collect barcodes
@@ -477,7 +489,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 <label>Talla</label>
                 <select value={formData.talla} onChange={(e) => handleInputChange("talla", parseInt(e.target.value))} className="w-full border px-2 py-1 rounded">
                   <option value={0}>Seleccionar</option>
-                  {tallas.map((t) => <option key={t.id} value={t.id}>{t.rango}</option>)}
+                  {tallas.map((t) => <option key={t.id} value={t.rango}>{t.rango}</option>)}
                 </select>
               </div>
               <div>
@@ -498,6 +510,7 @@ const GeneracionEtiquetas: React.FC = () => {
                   value={parseFloat(formData.presentacionKgs)}
                   onChange={(e) => handleInputChange("presentacionKgs", e.target.value)}
                   className="w-full border px-2 py-1 rounded"
+                  step="0.001"
                 />
               </div>
               <div>
@@ -507,6 +520,7 @@ const GeneracionEtiquetas: React.FC = () => {
                   value={parseFloat(formData.presentacionLbs)}
                   onChange={(e) => handleInputChange("presentacionLbs", e.target.value)}
                   className="w-full border px-2 py-1 rounded"
+                  step="0.001"
                 />
               </div>
             </div>
@@ -719,14 +733,14 @@ const GeneracionEtiquetas: React.FC = () => {
               <label>Número de Etiquetas/Cartones</label>
               <input
                 type="number"
-                value={formData.numeroEtiquetas}
-                onChange={(e) => handleInputChange("numeroEtiquetas", parseInt(e.target.value))}
+                value={formData.numeroCartones}
+                onChange={(e) => handleInputChange("numeroCartones", parseInt(e.target.value))}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </div>
           </div>
           <div className="bg-red-100 text-center p-3 font-bold text-red-700 rounded shadow">
-            Se Imprimirán {formData.numeroEtiquetas} Etiquetas, para un Total de{" "}
+            Se Imprimirán {formData.numeroCartones} Etiquetas, para un Total de{" "}
             {formData.numeroCartones} Cartones.
           </div>
 
