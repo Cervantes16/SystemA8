@@ -133,9 +133,22 @@ const GeneracionEtiquetas: React.FC = () => {
     const nuevoConsecutivo = formData.consecutivo + formData.numeroCartones;
     setFormData((prev) => ({ ...prev, consecutivo: nuevoConsecutivo }));
     alert(
-      `Se imprimirán ${formData.numeroEtiquetas} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`
+      `Se imprimirán ${formData.numeroEtiquetas} Etiqueta(s), para un Total de ${formData.numeroCartones} Cartone(s).`
     );
   };
+
+  // Aggregating cartons by sLote and talla
+  const totalPorLoteYTalla = detalleEtiquetas.reduce((acc, detalle) => {
+    const key = `${detalle.sLote}-${detalle.talla}`;
+    if (!acc[key]) {
+      acc[key] = { lote: detalle.sLote, talla: detalle.talla, cartones: 0 };
+    }
+    acc[key].cartones += detalle.cartones;
+    return acc;
+  }, {} as Record<string, { lote: string; talla: string; cartones: number }>);
+
+  // Convert object to array for rendering
+  const registros = Object.values(totalPorLoteYTalla);
 
   return (
     <div className="flex-1 bg-gray-100 min-h-screen overflow-y-auto p-4">
@@ -315,39 +328,27 @@ const GeneracionEtiquetas: React.FC = () => {
 
         {/* RIGHT PANEL */}
         <div className="space-y-4">
-          {/* Tabla Sublotes */}
+          {/* Total Etiquetas por Lote y Talla */}
           <div className="bg-white rounded shadow border">
             <div className="bg-blue-100 p-2 font-bold text-sm text-gray-700">
-              Detalles Sublotes
+              Registro:
             </div>
             <div className="divide-y text-sm">
-              {detalleEtiquetas.map((d) => (
-                <div key={d.id} className="grid grid-cols-5 text-center p-2">
-                  <span>{d.talla}</span>
-                  <span>{d.sLote}</span>
-                  <span>{d.cartones}</span>
-                  <span>{d.cartones}</span>
-                  <span>0.00</span>
+              <div className="grid grid-cols-3 text-center p-2 font-bold">
+                <span>Lote</span>
+                <span>Talla</span>
+                <span>Cartones</span>
+              </div>
+              {registros.map((registro, idx) => (
+                <div key={idx} className="grid grid-cols-3 text-center p-2">
+                  <span>{registro.lote}</span>
+                  <span>{registro.talla}</span>
+                  <span>{registro.cartones}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Tabla Lote */}
-          <div className="bg-white rounded shadow border">
-            <div className="p-2 text-red-600 font-bold">Lote:</div>
-            <div className="divide-y text-sm">
-              {detalleEtiquetas.map((d) => (
-                <div key={d.id} className="grid grid-cols-4 text-center p-2">
-                  <span>{d.id}</span>
-                  <span>{d.fecha}</span>
-                  <span>{d.sLote}</span>
-                  <span>{d.talla}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
           {/* CONFIGURACION DE ETIQUETAS */}
           <div className="bg-yellow-100 p-4 rounded shadow border text-sm">
             <h4 className="font-bold">Configuración de Etiquetas</h4>
@@ -390,8 +391,8 @@ const GeneracionEtiquetas: React.FC = () => {
           </div>
           {/* MENSAJE EN ROJO */}
           <div className="bg-red-100 text-center p-3 font-bold text-red-700 rounded shadow">
-            Se Imprimirán {formData.numeroEtiquetas} Etiquetas, para un Total de{" "}
-            {formData.numeroCartones} Cartones.
+            Se Imprimirán {formData.numeroEtiquetas} Etiqueta(s), para un Total de{" "}
+            {formData.numeroCartones} Carton(es).
           </div>
 
           {/* BOTONES */}
