@@ -30,6 +30,7 @@ interface FormData {
 interface DetalleEtiqueta {
   id: number;
   fecha: string;
+  diaJuliano: string; // Nueva propiedad para almacenar diaJuliano
   sLote: string;
   talla: string;
   cartones: number;
@@ -89,9 +90,9 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
-    { id: 1, fecha: "27/09/2025", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 2, fecha: "27/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
-    { id: 3, fecha: "27/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+    { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
+    { id: 3, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
@@ -173,17 +174,33 @@ const GeneracionEtiquetas: React.FC = () => {
   // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
   const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string): number => {
     const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
-    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" });
+    // Filtrar usando diaJuliano en lugar de fechaFormato
     const matchingEntries = detalleEtiquetas.filter(
       (detalle) =>
         detalle.sLote === lote &&
         detalle.talla === tallaRango &&
         detalle.producto === producto &&
         detalle.kgs === kgs &&
-        detalle.fecha === fechaFormato
+        detalle.diaJuliano === diaJuliano
     );
+    // Sumar el total de cartones para esta combinación
     const totalCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
-    return totalCartones + 1;
+    // Verificar el último folio en impresos
+    const idGranja = String(formData.granja).padStart(3, "0");
+    const idTalla = String(tallaId).padStart(2, "0");
+    const anio = new Date(formData.fechaEmpaque).getFullYear();
+    const kilosFormateados = String(parseInt(String(kgs), 10)).padStart(3, "0");
+    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${diaJuliano}${anio}${kilosFormateados}${idProducto}`;
+
+    const matchingBarcodes = impresos
+      .filter((barcode) => barcode.startsWith(prefix))
+      .map((barcode) => parseInt(barcode.slice(-4)))
+      .sort((a, b) => b - a);
+
+    const lastFolio = matchingBarcodes.length > 0 ? matchingBarcodes[0] : 0;
+    // Usar el mayor entre totalCartones y lastFolio para evitar duplicados
+    return Math.max(totalCartones, lastFolio) + 1;
   };
 
   // Genera lista de códigos de barras para previsualizar
@@ -199,7 +216,7 @@ const GeneracionEtiquetas: React.FC = () => {
     );
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0"); // Cambiado a 3 dígitos
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
 
     return (
@@ -227,6 +244,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleEtiquetas.length + 1,
       fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" }),
+      diaJuliano: formData.diaJuliano, // Almacenar diaJuliano
       sLote: formData.sublote,
       talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
       cartones: formData.numeroCartones,
@@ -248,8 +266,7 @@ const GeneracionEtiquetas: React.FC = () => {
       return;
     }
 
-    // Encontrar entradas coincidentes y calcular cartones disponibles
-    const fechaFormato = new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" });
+    // Encontrar entradas coincidentes usando diaJuliano
     const matchingEntries = detalleEtiquetas
       .filter(
         (detalle) =>
@@ -257,9 +274,9 @@ const GeneracionEtiquetas: React.FC = () => {
           detalle.talla === talla &&
           detalle.producto === producto &&
           detalle.kgs === parseFloat(formData.presentacionKgs) &&
-          detalle.fecha === fechaFormato
+          detalle.diaJuliano === formData.diaJuliano
       )
-      .sort((a, b) => b.id - a.id);
+      .sort((a, b) => b.id - a.id); // Ordenar por ID descendente
     const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
 
     if (totalAvailableCartons < cantidadEliminar) {
@@ -271,8 +288,8 @@ const GeneracionEtiquetas: React.FC = () => {
     const newDetalleEtiquetas = [...detalleEtiquetas];
     const deletedBarcodes: string[] = [];
 
-    // Generate all barcodes for matching entries
-    const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
+    // Generar prefijo de código de barras para eliminación
+    const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
@@ -282,16 +299,16 @@ const GeneracionEtiquetas: React.FC = () => {
     const matchingBarcodes = impresos
       .filter((barcode) => barcode.startsWith(prefix))
       .map((barcode) => ({ barcode, folio: parseInt(barcode.slice(-4)) }))
-      .sort((a, b) => b.folio - a.folio);
+      .sort((a, b) => b.folio - a.folio); // Eliminar folios más altos primero
 
-    // Delete cartons and collect barcodes
+    // Eliminar cartones y recolectar códigos de barras
     for (let i = 0; i < matchingBarcodes.length && remainingToDelete > 0; i++) {
       const { barcode } = matchingBarcodes[i];
       deletedBarcodes.push(barcode);
       remainingToDelete--;
     }
 
-    // Update detalleEtiquetas
+    // Actualizar detalleEtiquetas
     for (let i = 0; i < matchingEntries.length && remainingToDelete >= 0; i++) {
       const entry = matchingEntries[i];
       const entryIndex = newDetalleEtiquetas.findIndex((e) => e.id === entry.id);
@@ -314,7 +331,7 @@ const GeneracionEtiquetas: React.FC = () => {
     alert(`Se eliminaron ${cantidadEliminar} etiquetas. Motivo: ${motivo}`);
   };
 
-  // Aggregating cartons by sLote, talla, producto, and posicion
+  // Agregar cartones por fecha, sLote, talla, producto y posición
   const totalPorLoteTallaProductoPosicion = detalleEtiquetas.reduce((acc, detalle) => {
     const key = `${detalle.fecha}-${detalle.sLote}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
     if (!acc[key]) {
@@ -332,14 +349,14 @@ const GeneracionEtiquetas: React.FC = () => {
     return acc;
   }, {} as Record<string, { fecha: string; lote: string; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
 
-  // Convert object to array for rendering
+  // Convertir objeto a arreglo para renderizado
   const registros = Object.values(totalPorLoteTallaProductoPosicion);
 
-  // Calculate totals
+  // Calcular totales
   const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
   const totalKgs = registros.reduce((sum, registro) => sum + registro.cartones * registro.kgs, 0);
 
-  // Get unique lotes, tallas, and productos for delete form
+  // Obtener lotes, tallas y productos únicos para el formulario de eliminación
   const uniqueLotes = Array.from(new Set(detalleEtiquetas.map((d) => d.sLote)));
   const uniqueTallas = Array.from(new Set(detalleEtiquetas.map((d) => d.talla)));
   const uniqueProductos = Array.from(new Set(detalleEtiquetas.map((d) => d.producto)));
@@ -714,7 +731,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 </div>
               ))}
               <div className="grid grid-cols-7 text-center p-2 font-bold">
-                <span></span>                
+                <span></span>
                 <span></span>
                 <span></span>
                 <span>Total Cartones: {totalCartones}</span>
