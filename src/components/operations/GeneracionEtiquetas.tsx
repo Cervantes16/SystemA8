@@ -26,7 +26,7 @@ interface FormData {
   seccion: string; // New field for warehouse position
   fondo: string; // New field for warehouse position
   piso: string; // New field for warehouse position
-  posicion: string; // Combined position (e.g., "1-1-A-1")
+  posicion: string; // Combined position (e.g., "1-1A1")
 }
 
 interface DetalleEtiqueta {
@@ -81,7 +81,7 @@ const GeneracionEtiquetas: React.FC = () => {
     seccion: "1",
     fondo: "A",
     piso: "1",
-    posicion: "1-1-A-1",
+    posicion: "1-1A1",
   });
 
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
@@ -196,16 +196,14 @@ const GeneracionEtiquetas: React.FC = () => {
   // Convert object to array for rendering
   const registros = Object.values(totalPorLoteTallaProductoPosicion);
 
+  // Calculate totals
+  const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
+  const totalKgs = registros.reduce((sum, registro) => sum + registro.cartones * registro.kgs, 0);
+
   return (
     <div className="flex-1 bg-gray-100 min-h-screen overflow-y-auto p-4">
       {/* HEADER */}
       <div className="flex items-center gap-2 bg-gray-200 px-4 py-2 border-b">
-        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
-          <Plus size={16} /> Nuevo
-        </button>
-        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
-          <Edit size={16} /> Modificar
-        </button>
         <button
           onClick={handlePrint}
           className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm"
@@ -214,9 +212,6 @@ const GeneracionEtiquetas: React.FC = () => {
         </button>
         <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
           <Printer size={16} /> Imprimir con Salidas
-        </button>
-        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
-          <RefreshCw size={16} /> Subir Nube
         </button>
         <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm text-red-600">
           <Trash2 size={16} /> Eliminar
@@ -461,6 +456,14 @@ const GeneracionEtiquetas: React.FC = () => {
                   <span>{registro.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
                 </div>
               ))}
+              <div className="grid grid-cols-6 text-center p-2 font-bold">
+                <span></span>
+                <span></span>
+                <span>Total Cartones: {totalCartones}</span>
+                <span>Total Kgs: {totalKgs}</span>
+                <span></span>
+                <span></span>
+              </div>
             </div>
           </div>
 
