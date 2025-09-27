@@ -140,7 +140,7 @@ const GeneracionEtiquetas: React.FC = () => {
     }));
   }, [formData.bahia, formData.seccion, formData.fondo, formData.piso]);
 
-  // Manejar cambios en inputs y sincronizar Kgs <-> Lbs
+  // Manejar cambios en inputs y sincronizar Kgs ↔ Lbs
   const handleInputChange = (field: keyof FormData, value: string | boolean | number) => {
     setFormData((prev) => {
       let updated = { ...prev, [field]: value };
@@ -168,27 +168,30 @@ const GeneracionEtiquetas: React.FC = () => {
     setDeleteForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Obtener el próximo consecutivo para un lote, talla y producto
-  const getNextFolio = (lote: string, tallaId: number, producto: string): number => {
-    const idGranja = String(formData.granja).padStart(3, "0");
-    const idTalla = String(tallaId).padStart(2, "0");
-    const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(2, "0");
-    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
-    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${anio}${kilosFormateados}${idProducto}`;
-
-    const matchingBarcodes = impresos.filter((barcode) => barcode.startsWith(prefix));
-    if (matchingBarcodes.length === 0) return 1;
-
-    const folios = matchingBarcodes.map((barcode) => parseInt(barcode.slice(-4)));
-    return Math.max(...folios) + 1;
+  // Obtener el próximo consecutivo para un lote, talla, producto y kgs
+  const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number): number => {
+    const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
+    const matchingEntries = detalleEtiquetas.filter(
+      (detalle) =>
+        detalle.sLote === lote &&
+        detalle.talla === tallaRango &&
+        detalle.producto === producto &&
+        detalle.kgs === kgs
+    );
+    const totalCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+    return totalCartones + 1;
   };
 
   // Genera lista de códigos de barras para previsualizar
   const codigos = Array.from({ length: formData.numeroCartones }, (_, i) => {
     const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = String(formData.talla).padStart(2, "0");
-    const startFolio = getNextFolio(formData.lote, formData.talla, formData.producto);
+    const startFolio = getNextFolio(
+      formData.lote,
+      formData.talla,
+      formData.producto,
+      parseFloat(formData.presentacionKgs)
+    );
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(2, "0");
@@ -246,13 +249,14 @@ const GeneracionEtiquetas: React.FC = () => {
         (detalle) =>
           detalle.sLote === lote &&
           detalle.talla === talla &&
-          detalle.producto === producto
+          detalle.producto === producto &&
+          detalle.kgs === parseFloat(formData.presentacionKgs)
       )
       .sort((a, b) => b.id - a.id);
-    const totalAvailableCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+    const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
 
-    if (totalAvailableCartones < cantidadEliminar) {
-      alert(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartones}`);
+    if (totalAvailableCartons < cantidadEliminar) {
+      alert(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
       return;
     }
 
