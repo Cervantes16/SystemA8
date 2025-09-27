@@ -19,7 +19,6 @@ interface FormData {
   horaEmpaque: string;
   nombrePlanta: string;
   zDesigner: string;
-  consecutivo: number;
   numeroCartones: number;
   bahia: string;
   seccion: string;
@@ -81,7 +80,6 @@ const GeneracionEtiquetas: React.FC = () => {
     horaEmpaque: "12:30",
     nombrePlanta: "PLANTA LAS AGUILAS",
     zDesigner: "ZDesigner ZD220-203dpi ZPL",
-    consecutivo: 6,
     numeroCartones: 1,
     bahia: "1",
     seccion: "1",
@@ -91,13 +89,9 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
-    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 3, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 4, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 5, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 6, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
-    { id: 7, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
+    { id: 3, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
@@ -106,6 +100,16 @@ const GeneracionEtiquetas: React.FC = () => {
     "0001001012622025020010003",
     "0001001012622025020010004",
     "0001001012622025020010005",
+    "0001001012622025020020001",
+    "0001001012622025020020002",
+    "0001002012622025020010001",
+    "0001002012622025020010002",
+    "0001002012622025020010003",
+    "0001002012622025020010004",
+    "0001002012622025020010005",
+    "0001002012622025020010006",
+    "0001002012622025020010007",
+    "0001002012622025020010008",
   ]);
 
   const [eliminados, setEliminados] = useState<string[]>([]);
@@ -164,11 +168,26 @@ const GeneracionEtiquetas: React.FC = () => {
     setDeleteForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Obtener el próximo consecutivo para un lote, talla y producto
+  const getNextFolio = (lote: string, tallaId: number, producto: string): number => {
+    const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
+    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const idTalla = String(tallaId).padStart(2, "0");
+    const prefix = `${lote.padStart(4, "0")}${String(formData.granja).padStart(3, "0")}${idTalla}${formData.diaJuliano}${new Date(formData.fechaEmpaque).getFullYear()}${String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0")}${idProducto}`;
+
+    const matchingBarcodes = impresos.filter((barcode) => barcode.startsWith(prefix));
+    if (matchingBarcodes.length === 0) return 1;
+
+    const folios = matchingBarcodes.map((barcode) => parseInt(barcode.slice(-4)));
+    return Math.max(...folios) + 1;
+  };
+
   // Genera lista de códigos de barras para previsualizar
   const codigos = Array.from({ length: formData.numeroCartones }, (_, i) => {
     const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = String(formData.talla).padStart(2, "0");
-    const numeroEtiqueta = String(formData.consecutivo + i).padStart(4, "0");
+    const startFolio = getNextFolio(formData.lote, formData.talla, formData.producto);
+    const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
@@ -207,10 +226,6 @@ const GeneracionEtiquetas: React.FC = () => {
     };
     setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
 
-    // Update consecutivo
-    const nuevoConsecutivo = formData.consecutivo + formData.numeroCartones;
-    setFormData((prev) => ({ ...prev, consecutivo: nuevoConsecutivo }));
-
     alert(
       `Se imprimirán ${formData.numeroCartones} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`
     );
@@ -244,44 +259,37 @@ const GeneracionEtiquetas: React.FC = () => {
     const deletedBarcodes: string[] = [];
 
     // Generate all barcodes for matching entries
-    let folioCounter = matchingEntries.reduce((max, entry) => Math.max(max, entry.id + entry.cartones - 1), 0);
-    const matchingBarcodes = [];
-    for (const entry of matchingEntries.sort((a, b) => b.id - a.id)) {
-      const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
-      const idTalla = tallas.find((t) => t.rango === entry.talla)?.id.toString().padStart(2, "0") || "01";
-      const anio = new Date(formData.fechaEmpaque).getFullYear();
-      const kilosFormateados = String(parseInt(String(entry.kgs), 10)).padStart(3, "0");
-      const idProducto = entry.producto === "SIN_CABEZA" ? "01" : "02";
+    const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
+    const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
+    const anio = new Date(formData.fechaEmpaque).getFullYear();
+    const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
+    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${anio}${kilosFormateados}${idProducto}`;
 
-      for (let i = 0; i < entry.cartones; i++) {
-        const numeroEtiqueta = String(folioCounter).padStart(4, "0");
-        const barcode =
-          entry.sLote.padStart(4, "0") +
-          idGranja +
-          idTalla +
-          formData.diaJuliano.padStart(3, "0") +
-          anio +
-          kilosFormateados +
-          idProducto +
-          numeroEtiqueta;
-        matchingBarcodes.push({ barcode, entryId: entry.id });
-        folioCounter--;
-      }
-    }
-    matchingBarcodes.sort((a, b) => parseInt(b.barcode.slice(-4)) - parseInt(a.barcode.slice(-4)));
+    const matchingBarcodes = impresos
+      .filter((barcode) => barcode.startsWith(prefix))
+      .map((barcode) => ({ barcode, folio: parseInt(barcode.slice(-4)) }))
+      .sort((a, b) => b.folio - a.folio);
 
     // Delete cartons and collect barcodes
     for (let i = 0; i < matchingBarcodes.length && remainingToDelete > 0; i++) {
-      const { entryId, barcode } = matchingBarcodes[i];
-      const entryIndex = newDetalleEtiquetas.findIndex((e) => e.id === entryId);
+      const { barcode } = matchingBarcodes[i];
+      deletedBarcodes.push(barcode);
+      remainingToDelete--;
+    }
+
+    // Update detalleEtiquetas
+    for (let i = 0; i < matchingEntries.length && remainingToDelete >= 0; i++) {
+      const entry = matchingEntries[i];
+      const entryIndex = newDetalleEtiquetas.findIndex((e) => e.id === entry.id);
       if (entryIndex !== -1) {
-        if (newDetalleEtiquetas[entryIndex].cartones > 1) {
-          newDetalleEtiquetas[entryIndex].cartones -= 1;
-        } else {
+        if (newDetalleEtiquetas[entryIndex].cartones <= remainingToDelete) {
+          remainingToDelete -= newDetalleEtiquetas[entryIndex].cartones;
           newDetalleEtiquetas.splice(entryIndex, 1);
+        } else {
+          newDetalleEtiquetas[entryIndex].cartones -= remainingToDelete;
+          remainingToDelete = 0;
         }
-        deletedBarcodes.push(barcode);
-        remainingToDelete--;
       }
     }
 
@@ -489,7 +497,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 <label>Talla</label>
                 <select value={formData.talla} onChange={(e) => handleInputChange("talla", parseInt(e.target.value))} className="w-full border px-2 py-1 rounded">
                   <option value={0}>Seleccionar</option>
-                  {tallas.map((t) => <option key={t.id} value={t.rango}>{t.rango}</option>)}
+                  {tallas.map((t) => <option key={t.id} value={t.id}>{t.rango}</option>)}
                 </select>
               </div>
               <div>
@@ -717,15 +725,6 @@ const GeneracionEtiquetas: React.FC = () => {
                 type="text"
                 value={formData.zDesigner}
                 onChange={(e) => handleInputChange("zDesigner", e.target.value)}
-                className="w-full border px-2 py-1 rounded mt-1"
-              />
-            </div>
-            <div className="mt-2">
-              <label>Consecutivo Actual</label>
-              <input
-                type="number"
-                value={formData.consecutivo}
-                onChange={(e) => handleInputChange("consecutivo", parseInt(e.target.value))}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </div>
