@@ -8,8 +8,8 @@ interface FormData {
   diaJuliano: string;
   lote: string;
   sublote: string;
-  granja: number; // ahora ID
-  talla: number;  // ahora ID
+  granja: number;
+  talla: number;
   camarones: string;
   presentacionKgs: string;
   presentacionLbs: string;
@@ -22,11 +22,11 @@ interface FormData {
   consecutivo: number;
   numeroCartones: number;
   numeroEtiquetas: number;
-  bahia: string; // New field for warehouse position
-  seccion: string; // New field for warehouse position
-  fondo: string; // New field for warehouse position
-  piso: string; // New field for warehouse position
-  posicion: string; // Combined position (e.g., "1-1A1")
+  bahia: string;
+  seccion: string;
+  fondo: string;
+  piso: string;
+  posicion: string;
 }
 
 interface DetalleEtiqueta {
@@ -37,7 +37,15 @@ interface DetalleEtiqueta {
   cartones: number;
   kgs: number;
   producto: string;
-  posicion: string; // New field for warehouse position
+  posicion: string;
+}
+
+interface DeleteForm {
+  lote: string;
+  talla: string;
+  producto: string;
+  cantidadEliminar: number;
+  motivo: string;
 }
 
 // Opciones
@@ -52,8 +60,8 @@ const tallas = [
   { id: 3, rango: "61-70" },
 ];
 
-const bahias = Array.from({ length: 10 }, (_, i) => String(i + 1)); // 1 to 10
-const secciones = Array.from({ length: 5 }, (_, i) => String(i + 1)); // 1 to 5
+const bahias = Array.from({ length: 10 }, (_, i) => String(i + 1));
+const secciones = Array.from({ length: 5 }, (_, i) => String(i + 1));
 const fondos = ["A", "B", "C"];
 const pisos = ["1", "2", "3"];
 
@@ -74,7 +82,7 @@ const GeneracionEtiquetas: React.FC = () => {
     horaEmpaque: "12:30",
     nombrePlanta: "PLANTA LAS AGUILAS",
     zDesigner: "ZDesigner ZD220-203dpi ZPL",
-    consecutivo: 1,
+    consecutivo: 6, // Start after 0005 to match example
     numeroCartones: 1,
     numeroEtiquetas: 1,
     bahia: "1",
@@ -85,12 +93,32 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
-    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 3, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
-    { id: 3, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+    { id: 1, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 3, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 4, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 5, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 1, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
+    { id: 6, fecha: "20/09/2025", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
+    { id: 7, fecha: "20/09/2025", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
 
-  const [impresos, setImpresos] = useState<string[]>([]);
+  const [impresos, setImpresos] = useState<string[]>([
+    "0001001012622025020010001",
+    "0001001012622025020010002",
+    "0001001012622025020010003",
+    "0001001012622025020010004",
+    "0001001012622025020010005",
+  ]);
+
+  const [eliminados, setEliminados] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteForm, setDeleteForm] = useState<DeleteForm>({
+    lote: "",
+    talla: "",
+    producto: "",
+    cantidadEliminar: 0,
+    motivo: "",
+  });
 
   // Actualizar día Juliano cuando cambia la fecha
   useEffect(() => {
@@ -117,16 +145,21 @@ const GeneracionEtiquetas: React.FC = () => {
 
       if (field === "presentacionKgs") {
         const kgs = parseFloat(String(value)) || 0;
-        updated.presentacionLbs = (kgs * 2.20462).toFixed(3); // Convertir a libras
+        updated.presentacionLbs = (kgs * 2.20462).toFixed(3);
       }
 
       if (field === "presentacionLbs") {
         const lbs = parseFloat(String(value)) || 0;
-        updated.presentacionKgs = (lbs / 2.20462).toFixed(3); // Convertir a kilos
+        updated.presentacionKgs = (lbs / 2.20462).toFixed(3);
       }
 
       return updated;
     });
+  };
+
+  // Manejar cambios en el formulario de eliminación
+  const handleDeleteFormChange = (field: keyof DeleteForm, value: string | number) => {
+    setDeleteForm((prev) => ({ ...prev, [field]: value }));
   };
 
   // Genera lista de códigos de barras para previsualizar
@@ -135,11 +168,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const idTalla = String(formData.talla).padStart(2, "0");
     const numeroEtiqueta = String(formData.consecutivo + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    
-    // Usar presentacionKgs para kilosFormateados
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
-
-    // producto: 01 = sin cabeza, 02 = con cabeza
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
 
     return (
@@ -155,11 +184,9 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const handlePrint = () => {
-    setImpresos(codigos);
-    // Actualizar el consecutivo
+    setImpresos((prev) => [...prev, ...codigos]);
     const nuevoConsecutivo = formData.consecutivo + formData.numeroCartones;
     setFormData((prev) => ({ ...prev, consecutivo: nuevoConsecutivo }));
-    // Agregar nueva entrada a detalleEtiquetas
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleEtiquetas.length + 1,
       fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES"),
@@ -174,6 +201,79 @@ const GeneracionEtiquetas: React.FC = () => {
     alert(
       `Se imprimirán ${formData.numeroEtiquetas} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`
     );
+  };
+
+  const handleDelete = () => {
+    const { lote, talla, producto, cantidadEliminar, motivo } = deleteForm;
+    if (!lote || !talla || !producto || cantidadEliminar <= 0 || !motivo) {
+      alert("Por favor, complete todos los campos del formulario de eliminación.");
+      return;
+    }
+
+    // Find matching entries
+    const matchingEntries = detalleEtiquetas
+      .filter(
+        (detalle) =>
+          detalle.sLote === lote &&
+          detalle.talla === talla &&
+          detalle.producto === producto
+      )
+      .sort((a, b) => b.id - a.id); // Sort by id descending
+
+    let remainingToDelete = cantidadEliminar;
+    const newDetalleEtiquetas = [...detalleEtiquetas];
+    const deletedBarcodes: string[] = [];
+
+    // Generate barcodes for matching entries
+    const matchingBarcodes = matchingEntries.flatMap((entry) => {
+      const idGranja = granjas.find((g) => g.nombre === formData.nombrePlanta)?.id.toString().padStart(3, "0") || "001";
+      const idTalla = tallas.find((t) => t.rango === entry.talla)?.id.toString().padStart(2, "0") || "01";
+      const anio = new Date(formData.fechaEmpaque).getFullYear();
+      const kilosFormateados = String(parseInt(String(entry.kgs), 10)).padStart(3, "0");
+      const idProducto = entry.producto === "SIN_CABEZA" ? "01" : "02";
+      return Array.from({ length: entry.cartones }, (_, i) => {
+        const numeroEtiqueta = String(entry.id + i).padStart(4, "0");
+        return (
+          entry.sLote.padStart(4, "0") +
+          idGranja +
+          idTalla +
+          formData.diaJuliano.padStart(3, "0") +
+          anio +
+          kilosFormateados +
+          idProducto +
+          numeroEtiqueta
+        );
+      });
+    }).sort((a, b) => parseInt(b.slice(-4)) - parseInt(a.slice(-4))); // Sort by folio descending
+
+    // Remove barcodes and update detalleEtiquetas
+    for (let i = 0; i < matchingEntries.length && remainingToDelete > 0; i++) {
+      const entry = matchingEntries[i];
+      const entryIndex = newDetalleEtiquetas.findIndex((e) => e.id === entry.id);
+      if (entry.cartones <= remainingToDelete) {
+        // Remove entire entry
+        newDetalleEtiquetas.splice(entryIndex, 1);
+        deletedBarcodes.push(...matchingBarcodes.splice(0, entry.cartones));
+        remainingToDelete -= entry.cartones;
+      } else {
+        // Reduce cartones
+        newDetalleEtiquetas[entryIndex].cartones -= remainingToDelete;
+        deletedBarcodes.push(...matchingBarcodes.splice(0, remainingToDelete));
+        remainingToDelete = 0;
+      }
+    }
+
+    if (remainingToDelete > 0) {
+      alert("No hay suficientes cartones para eliminar la cantidad especificada.");
+      return;
+    }
+
+    setDetalleEtiquetas(newDetalleEtiquetas);
+    setImpresos((prev) => prev.filter((barcode) => !deletedBarcodes.includes(barcode)));
+    setEliminados((prev) => [...prev, ...deletedBarcodes]);
+    setShowDeleteModal(false);
+    setDeleteForm({ lote: "", talla: "", producto: "", cantidadEliminar: 0, motivo: "" });
+    alert(`Se eliminaron ${cantidadEliminar} etiquetas. Motivo: ${motivo}`);
   };
 
   // Aggregating cartons by sLote, talla, producto, and posicion
@@ -200,10 +300,21 @@ const GeneracionEtiquetas: React.FC = () => {
   const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
   const totalKgs = registros.reduce((sum, registro) => sum + registro.cartones * registro.kgs, 0);
 
+  // Get unique lotes and tallas for delete form
+  const uniqueLotes = Array.from(new Set(detalleEtiquetas.map((d) => d.sLote)));
+  const uniqueTallas = Array.from(new Set(detalleEtiquetas.map((d) => d.talla)));
+  const uniqueProductos = Array.from(new Set(detalleEtiquetas.map((d) => d.producto)));
+
   return (
     <div className="flex-1 bg-gray-100 min-h-screen overflow-y-auto p-4">
       {/* HEADER */}
       <div className="flex items-center gap-2 bg-gray-200 px-4 py-2 border-b">
+        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
+          <Plus size={16} /> Nuevo
+        </button>
+        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
+          <Edit size={16} /> Modificar
+        </button>
         <button
           onClick={handlePrint}
           className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm"
@@ -213,13 +324,104 @@ const GeneracionEtiquetas: React.FC = () => {
         <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
           <Printer size={16} /> Imprimir con Salidas
         </button>
-        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm text-red-600">
+        <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
+          <RefreshCw size={16} /> Subir Nube
+        </button>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm text-red-600"
+        >
           <Trash2 size={16} /> Eliminar
         </button>
         <button className="ml-auto px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
           <ArrowLeft size={16} /> Salir
         </button>
       </div>
+
+      {/* MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-96">
+            <h3 className="text-lg font-bold mb-4">Eliminar Etiquetas</h3>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label>Lote</label>
+                <select
+                  value={deleteForm.lote}
+                  onChange={(e) => handleDeleteFormChange("lote", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {uniqueLotes.map((lote) => (
+                    <option key={lote} value={lote}>{lote}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Talla</label>
+                <select
+                  value={deleteForm.talla}
+                  onChange={(e) => handleDeleteFormChange("talla", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {uniqueTallas.map((talla) => (
+                    <option key={talla} value={talla}>{talla}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Producto</label>
+                <select
+                  value={deleteForm.producto}
+                  onChange={(e) => handleDeleteFormChange("producto", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                >
+                  <option value="">Seleccionar</option>
+                  {uniqueProductos.map((producto) => (
+                    <option key={producto} value={producto}>
+                      {producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Cantidad a Eliminar</label>
+                <input
+                  type="number"
+                  value={deleteForm.cantidadEliminar}
+                  onChange={(e) => handleDeleteFormChange("cantidadEliminar", parseInt(e.target.value) || 0)}
+                  className="w-full border px-2 py-1 rounded"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label>Motivo</label>
+                <input
+                  type="text"
+                  value={deleteForm.motivo}
+                  onChange={(e) => handleDeleteFormChange("motivo", e.target.value)}
+                  className="w-full border px-2 py-1 rounded"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-gray-300 rounded"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* BODY */}
       <div className="grid grid-cols-2 gap-4 mt-4">
@@ -337,7 +539,6 @@ const GeneracionEtiquetas: React.FC = () => {
               <span className="text-sm">Metabisulfato</span>
             </div>
 
-            {/* Posición en Bodega */}
             <div className="grid grid-cols-4 gap-3 text-sm mt-3">
               <div>
                 <label>Bahía</label>
@@ -403,7 +604,6 @@ const GeneracionEtiquetas: React.FC = () => {
             </div>
           </div>
 
-          {/* VISTA PREVIA CON SCROLL */}
           <div className="bg-white p-4 rounded shadow border max-h-[400px] overflow-y-auto mt-4">
             <h2 className="text-lg font-semibold">Vista previa</h2>
             <div className="space-y-6">
@@ -416,7 +616,6 @@ const GeneracionEtiquetas: React.FC = () => {
             </div>
           </div>
 
-          {/* ÚLTIMOS IMPRESOS */}
           {impresos.length > 0 && (
             <div className="bg-white p-4 rounded shadow border mt-4">
               <h2 className="text-lg font-semibold text-red-600">Últimos impresos</h2>
@@ -430,11 +629,24 @@ const GeneracionEtiquetas: React.FC = () => {
               </div>
             </div>
           )}
+
+          {eliminados.length > 0 && (
+            <div className="bg-white p-4 rounded shadow border mt-4">
+              <h2 className="text-lg font-semibold text-red-600">Últimos eliminados</h2>
+              <div className="space-y-6">
+                {eliminados.map((codigo, idx) => (
+                  <div key={idx} className="flex flex-col items-center">
+                    <p className="font-mono">{codigo}</p>
+                    <Barcode value={codigo} height={60} displayValue={true} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RIGHT PANEL */}
         <div className="space-y-4">
-          {/* Total Etiquetas por Lote, Talla, Producto y Posición */}
           <div className="bg-white rounded shadow border">
             <div className="bg-blue-100 p-2 font-bold text-sm text-gray-700">
               Registro:
@@ -446,6 +658,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 <span>Cartones</span>
                 <span>(Kgs)</span>
                 <span>Producto</span>
+                <span>Posición</span>
               </div>
               {registros.map((registro, idx) => (
                 <div key={idx} className="grid grid-cols-6 text-center p-2">
@@ -454,6 +667,7 @@ const GeneracionEtiquetas: React.FC = () => {
                   <span>{registro.cartones}</span>
                   <span>{registro.kgs}</span>
                   <span>{registro.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
+                  <span>{registro.posicion}</span>
                 </div>
               ))}
               <div className="grid grid-cols-6 text-center p-2 font-bold">
@@ -467,7 +681,6 @@ const GeneracionEtiquetas: React.FC = () => {
             </div>
           </div>
 
-          {/* CONFIGURACION DE ETIQUETAS */}
           <div className="bg-yellow-100 p-4 rounded shadow border text-sm">
             <h4 className="font-bold">Configuración de Etiquetas</h4>
             <div className="mt-2">
@@ -507,13 +720,11 @@ const GeneracionEtiquetas: React.FC = () => {
               />
             </div>
           </div>
-          {/* MENSAJE EN ROJO */}
           <div className="bg-red-100 text-center p-3 font-bold text-red-700 rounded shadow">
             Se Imprimirán {formData.numeroEtiquetas} Etiquetas, para un Total de{" "}
             {formData.numeroCartones} Cartones.
           </div>
 
-          {/* BOTONES */}
           <div className="flex justify-center gap-4 mt-4">
             <button
               onClick={handlePrint}
