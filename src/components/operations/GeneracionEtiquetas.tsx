@@ -104,24 +104,25 @@ const GeneracionEtiquetas: React.FC = () => {
 
   // Genera lista de códigos de barras para previsualizar
   const codigos = Array.from({ length: formData.numeroCartones }, (_, i) => {
-    //const granjaNombre = granjas.find((g) => g.id === formData.granja)?.nombre || "XXX";
-    //const tallaRango = tallas.find((t) => t.id === formData.talla)?.rango || "00-00";
-
-    const idGranja = String(formData.granja + i).padStart(3, "0");
-    const idTalla = String(formData.talla + i).padStart(3, "0");
+    const idGranja = String(formData.granja).padStart(3, "0");
+    const idTalla = String(formData.talla).padStart(2, "0");
     const numeroEtiqueta = String(formData.consecutivo + i).padStart(4, "0");
     const anio = new Date(formData.fechaEmpaque).getFullYear();
-    const kilosFormateados = (parseFloat(formData.presentacionKgs) * 100).toFixed(0).padStart(4, "0");
+    
+    // aquí supongo que cada cartón es formData.presentacionKgs kilos exactos
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
+
+    // producto: 01 = sin cabeza, 02 = con cabeza
+    const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
 
     return (
       formData.lote.padStart(4, "0") +
-      //formData.sublote.padStart(5, "0") +
       idGranja +
-      idTalla.padStart(2, "0") +
+      idTalla +
       formData.diaJuliano.padStart(3, "0") +
       anio +
       kilosFormateados +
-      (formData.producto === "CAMARON" ? "01" : "02") +
+      idProducto +
       numeroEtiqueta
     );
   });
@@ -257,8 +258,8 @@ const GeneracionEtiquetas: React.FC = () => {
                   onChange={(e) => handleInputChange("producto", e.target.value)}
                   className="w-full border px-2 py-1 rounded"
                 >
-                  <option value="CAMARON">CAMARON</option>
-                  <option value="LANGOSTINO">LANGOSTINO</option>
+                  <option value="SIN_CABEZA">S/CABEZA</option>
+                  <option value="CON_CABEZA">C/CABEZA</option>
                 </select>
               </div>
               <div>
