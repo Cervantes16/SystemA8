@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Printer, RefreshCw, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
 import Barcode from "react-barcode";
 import { QRCodeSVG } from "qrcode.react";
+import ReactToPrint from "react-to-print";
 
 // Define interfaces for TypeScript
 interface FormData {
@@ -90,7 +91,7 @@ const GeneracionEtiquetas: React.FC = () => {
     posicion: "1-1A1",
   });
 
-const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
+  const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
     { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
@@ -125,6 +126,8 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     motivo: "",
   });
 
+  const componentRef = useRef<HTMLDivElement>(null);
+
   // Actualizar día Juliano cuando cambia la fecha
   /*useEffect(() => {
     const date = new Date(formData.fechaEmpaque);
@@ -140,7 +143,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     if (formData.fechaEmpaque) {
       const [year, month, day] = formData.fechaEmpaque.split("-").map(Number);
       const date = new Date(year, month - 1, day); // ← Local, sin desfase por zona horaria
-      
+
       console.log("Calculating Julian Day for date:", date);
 
       const startOfYear = new Date(year, 0, 1);
@@ -247,7 +250,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       alert("Por favor, ingrese un número válido de etiquetas/cartones.");
       return;
     }
-    
+
     if (!formData.fechaEmpaque) {
       alert("Por favor, seleccione una fecha de empaque válida.");
       return;
@@ -274,7 +277,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       id: detalleEtiquetas.length + 1,
       fecha: fechaFormateada,
       diaJuliano: formData.diaJuliano,
-      //sLote: formData.sublote,
+      sLote: formData.lote,
       talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
       cartones: formData.numeroCartones,
       kgs: parseFloat(formData.presentacionKgs),
@@ -397,6 +400,43 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
   const uniqueLotes = Array.from(new Set(detalleEtiquetas.map((d) => d.sLote)));
   const uniqueTallas = Array.from(new Set(detalleEtiquetas.map((d) => d.talla)));
   const uniqueProductos = Array.from(new Set(detalleEtiquetas.map((d) => d.producto)));
+
+  const EtiquetaPrint = React.forwardRef<HTMLDivElement>((props, ref) => {
+    const [year, month, day] = formData.fechaEmpaque.split("-").map(Number);
+    const fecha = new Date(year, month - 1, day);
+    const fechaCaduca = new Date(fecha);
+    fechaCaduca.setFullYear(fechaCaduca.getFullYear() + 2);
+    const mostrarCamarones = true; // Simulamos dtPreferencias["MostrarCamarones"] no siendo "N"
+    const leyendaAlergias = "Contiene alérgenos (crustáceos)"; // Simulamos dtPreferencias["LeyendaAlergias"]
+    const leyendaAlimentaria = "Producto alimenticio"; // Simulamos dtPreferencias["LeyendaAlimentaria"]
+
+    return (
+      <div ref={ref} style={{ width: "300px", padding: "20px", border: "1px solid #000", fontSize: "12px" }}>
+        <div><strong>Planta:</strong> {formData.nombrePlanta}</div>
+        <div><strong>Talla:</strong> {tallas.find(t => t.id === formData.talla)?.rango || ''}</div>
+        <div><strong>Tipo Camarón:</strong> {formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</div>
+        <div><strong>Granja:</strong> {granjas.find(g => g.id === formData.granja)?.nombre || ''}</div>
+        <div><strong>Peso:</strong> {formData.presentacionKgs} kg</div>
+        <div><strong>Empaque:</strong> {fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+        <div><strong>C. Antes De:</strong> {fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+        <div><strong>No Lote:</strong> {formData.sublote}</div>
+        <div><strong>Lote:</strong> {`Lote ${formData.lote}-${fecha.getFullYear().toString().slice(-2)}`}</div>
+        <div><strong>Hora:</strong> {formData.horaEmpaque}</div>
+        {mostrarCamarones && <div><strong>Camarones:</strong> {formData.camarones}</div>}
+        <div><strong>Uniformidad:</strong> {parseFloat(formData.uniformidad).toFixed(2)}</div>
+        <div><strong>Metabisulfito:</strong> {formData.metabisulfato ? "SI" : "NO"}</div>
+        <div><strong>Barras:</strong> {codigos[0]?.barcode || ''}</div>
+        <div><strong>Leyenda Alergias:</strong> {leyendaAlergias}</div>
+        <div><strong>Leyenda Alimentaria:</strong> {leyendaAlimentaria}</div>
+        <div style={{ marginTop: "10px" }}>
+          <Barcode value={codigos[0]?.barcode || ''} height={50} displayValue={true} />
+        </div>
+        <div style={{ marginTop: "10px" }}>
+          <QRCodeSVG value={codigos[0]?.qrContent || ''} size={50} level="M" />
+        </div>
+      </div>
+    );
+  });
 
   return (
     <div className="flex-1 bg-gray-100 min-h-screen overflow-y-auto p-4">
