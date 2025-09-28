@@ -89,10 +89,9 @@ const GeneracionEtiquetas: React.FC = () => {
     posicion: "1-1A1",
   });
 
-  const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
+const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "41-50", cartones: 2, kgs: 20, producto: "CON_CABEZA", posicion: "1-1A1" },
-    { id: 3, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+    { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
@@ -101,8 +100,6 @@ const GeneracionEtiquetas: React.FC = () => {
     "0001001012702025020010003",
     "0001001012702025020010004",
     "0001001012702025020010005",
-    "0001001012702025020020001",
-    "0001001012702025020020002",
     "0001001022702025020010001",
     "0001001022702025020010002",
     "0001001022702025020010003",
@@ -113,7 +110,11 @@ const GeneracionEtiquetas: React.FC = () => {
     "0001001022702025020010008",
   ]);
 
-  const [eliminados, setEliminados] = useState<string[]>([]);
+  const [eliminados, setEliminados] = useState<string[]>([
+    "0001001012702025020020001",
+    "0001001012702025020020002",
+  ]);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteForm, setDeleteForm] = useState<DeleteForm>({
     lote: "",
@@ -124,14 +125,33 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   // Actualizar día Juliano cuando cambia la fecha
-  useEffect(() => {
+  /*useEffect(() => {
     const date = new Date(formData.fechaEmpaque);
+    console.log("Calculating Julian Day for date:", date);
     const normalizedDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const startOfYear = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
     const diff = normalizedDate.getTime() - startOfYear.getTime();
     const oneDay = 1000 * 60 * 60 * 24;
     const diaJuliano = Math.floor(diff / oneDay) + 1;
     setFormData((prev) => ({ ...prev, diaJuliano: String(diaJuliano).padStart(3, "0") }));
+  }, [formData.fechaEmpaque]);*/
+  useEffect(() => {
+    if (formData.fechaEmpaque) {
+      const [year, month, day] = formData.fechaEmpaque.split("-").map(Number);
+      const date = new Date(year, month - 1, day); // ← Local, sin desfase por zona horaria
+      
+      console.log("Calculating Julian Day for date:", date);
+
+      const startOfYear = new Date(year, 0, 1);
+      const diff = date.getTime() - startOfYear.getTime();
+      const oneDay = 1000 * 60 * 60 * 24;
+      const diaJuliano = Math.floor(diff / oneDay) + 1;
+
+      setFormData((prev) => ({
+        ...prev,
+        diaJuliano: String(diaJuliano).padStart(3, "0"),
+      }));
+    }
   }, [formData.fechaEmpaque]);
 
   // Actualizar posición cuando cambian bahia, seccion, fondo o piso
@@ -224,10 +244,32 @@ const GeneracionEtiquetas: React.FC = () => {
       alert("Por favor, ingrese un número válido de etiquetas/cartones.");
       return;
     }
+    
+    if (!formData.fechaEmpaque) {
+      alert("Por favor, seleccione una fecha de empaque válida.");
+      return;
+    }
+
+    const [year, month, day] = formData.fechaEmpaque.split("-").map(Number);
+    const fechaLocal = new Date(year, month - 1, day);
+
+    const fechaFormateada = fechaLocal.toLocaleDateString("es-ES", {
+      timeZone: "America/Mazatlan",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    if (fechaFormateada === "Invalid Date") {
+      alert("La fecha de empaque no es válida.");
+      return;
+    }
+
+    console.log("Calculating Julian Day for fechaFormateada:", fechaFormateada);
     setImpresos((prev) => [...prev, ...codigos]);
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleEtiquetas.length + 1,
-      fecha: new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { timeZone: "America/Mazatlan" }),
+      fecha: fechaFormateada,
       diaJuliano: formData.diaJuliano,
       sLote: formData.sublote,
       talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
