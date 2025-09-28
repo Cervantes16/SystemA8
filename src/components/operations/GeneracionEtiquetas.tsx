@@ -667,7 +667,7 @@ const GeneracionEtiquetas: React.FC = () => {
               ))}
             </div>
           </div>
-          {impresos.length > 0 && (
+          {/*impresos.length > 0 && (
             <div className="bg-white p-4 rounded shadow border mt-4">
               <h2 className="text-lg font-semibold text-red-600">Últimos impresos</h2>
               <div className="space-y-6">
@@ -679,8 +679,8 @@ const GeneracionEtiquetas: React.FC = () => {
                 ))}
               </div>
             </div>
-          )}
-          {eliminados.length > 0 && (
+          )*/}
+          {/*eliminados.length > 0 && (
             <div className="bg-white p-4 rounded shadow border mt-4">
               <h2 className="text-lg font-semibold text-red-600">Últimos eliminados</h2>
               <div className="space-y-6">
@@ -692,7 +692,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 ))}
               </div>
             </div>
-          )}
+          )*/}
         </div>
         <div className="space-y-4">
           <div className="bg-white rounded shadow border">
