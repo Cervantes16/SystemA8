@@ -759,7 +759,7 @@ const GeneracionEtiquetas: React.FC = () => {
               />
             </div>
           </div>
-          <div className="bg-red-100 text-center p-3 font-bold text-red-700 rounded shadow">
+          <div className="bg-yellow-200 text-center p-3 font-bold text-green-600 rounded shadow">
             Se Imprimirán {formData.numeroCartones} Etiquetas, para un Total de {formData.numeroCartones} Cartones.
           </div>
           <div className="flex justify-center gap-4 mt-4">
