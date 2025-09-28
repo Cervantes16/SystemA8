@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Printer, RefreshCw, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
 import Barcode from "react-barcode";
+import { QRCodeSVG } from "qrcode.react";
 
 // Define interfaces for TypeScript
 interface FormData {
   fechaEmpaque: string;
   diaJuliano: string;
   lote: string;
-  sublote: string;
+  //sublote: string;
   granja: number;
   talla: number;
   camarones: string;
@@ -69,7 +70,7 @@ const GeneracionEtiquetas: React.FC = () => {
     fechaEmpaque: "2025-09-27",
     diaJuliano: "270",
     lote: "1",
-    sublote: "1",
+    //sublote: "1",
     granja: 1,
     talla: 2,
     camarones: "1.00",
@@ -227,7 +228,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const anio = new Date(formData.fechaEmpaque).getFullYear();
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
-    return (
+    const barcode = (
       formData.lote.padStart(4, "0") +
       idGranja +
       idTalla +
@@ -236,7 +237,9 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       kilosFormateados +
       idProducto +
       numeroEtiqueta
-    );
+    );//, SubLote: ${formData.sublote}
+    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, AñoProduccion: ${anio}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Barras: ${barcode}, Hora: ${formData.horaEmpaque}`;
+    return { barcode, qrContent };
   });
 
   const handlePrint = () => {
@@ -266,12 +269,12 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     }
 
     console.log("Calculating Julian Day for fechaFormateada:", fechaFormateada);
-    setImpresos((prev) => [...prev, ...codigos]);
+    setImpresos((prev) => [...prev, ...codigos.map(c => c.barcode)]);
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleEtiquetas.length + 1,
       fecha: fechaFormateada,
       diaJuliano: formData.diaJuliano,
-      sLote: formData.sublote,
+      //sLote: formData.sublote,
       talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
       cartones: formData.numeroCartones,
       kgs: parseFloat(formData.presentacionKgs),
@@ -702,9 +705,10 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
             <h2 className="text-lg font-semibold">Vista previa</h2>
             <div className="space-y-6">
               {codigos.map((codigo, idx) => (
-                <div key={idx} className="flex flex-col items-center">
-                  <p className="font-mono">{codigo}</p>
-                  <Barcode value={codigo} height={60} displayValue={true} />
+                <div key={idx} className="flex flex-col items-center space-y-2">
+                  <p className="font-mono">{codigo.barcode}</p>
+                  <Barcode value={codigo.barcode} height={60} displayValue={true} />
+                  <QRCodeSVG value={codigo.qrContent} size={120} level="M" />
                 </div>
               ))}
             </div>
