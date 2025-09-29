@@ -137,7 +137,7 @@ export default function RecepcionProducto() {
           choferid: String(r.choferid),
           propietarioid: String(r.propietarioid),
           cicloid: String(r.cicloid),
-          lote: String(r.lote), // Convertir lote a string
+          lote: String(r.lote),
         }));
       } else if (Array.isArray(res.data.recepciones)) {
         recepcionesArray = res.data.recepciones.map((r: RecepcionItem) => ({
@@ -218,11 +218,13 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/granjas', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setGranjas(res.data.map((granja: Granja) => ({
+      const normalizedGranjas = res.data.map((granja: Granja) => ({
         ...granja,
         granjaid: String(granja.granjaid),
         propietarioid: String(granja.propietarioid),
-      })) || []);
+      }));
+      setGranjas(normalizedGranjas);
+      console.log('Normalized Granjas:', normalizedGranjas);
     } catch (error) {
       console.error('Error fetching granjas:', error);
       setErrorMessage('Error al cargar las granjas.');
@@ -234,10 +236,12 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/ciclos', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCiclos(res.data.map((ciclo: Ciclo) => ({
+      const normalizedCiclos = res.data.map((ciclo: Ciclo) => ({
         ...ciclo,
         cicloid: String(ciclo.cicloid),
-      })) || []);
+      }));
+      setCiclos(normalizedCiclos);
+      console.log('Normalized Ciclos:', normalizedCiclos);
     } catch (error) {
       console.error('Error fetching ciclos:', error);
       setErrorMessage('Error al cargar los ciclos.');
@@ -249,10 +253,12 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/propietarios', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setPropietarios(res.data.map((propietario: Propietario) => ({
+      const normalizedPropietarios = res.data.map((propietario: Propietario) => ({
         ...propietario,
         propietarioid: String(propietario.propietarioid),
-      })) || []);
+      }));
+      setPropietarios(normalizedPropietarios);
+      console.log('Normalized Propietarios:', normalizedPropietarios);
     } catch (error) {
       console.error('Error fetching propietarios:', error);
       setErrorMessage('Error al cargar los propietarios.');
@@ -511,12 +517,15 @@ export default function RecepcionProducto() {
 
     if (!granjaExists && recepcion.granjaid) {
       console.warn(`Granja con id ${recepcion.granjaid} no encontrada para propietario ${selectedPropietarioId}`);
+      setErrorMessage(`Granja con id ${recepcion.granjaid} no encontrada. Por favor, selecciona otra granja.`);
     }
     if (!carroExists && recepcion.carroid) {
       console.warn(`Carro con id ${recepcion.carroid} no encontrado en la lista de carros`);
+      setErrorMessage(`Carro con id ${recepcion.carroid} no encontrado. Por favor, selecciona otro carro.`);
     }
     if (!choferExists && recepcion.choferid) {
       console.warn(`Chofer con id ${recepcion.choferid} no encontrado en la lista de choferes`);
+      setErrorMessage(`Chofer con id ${recepcion.choferid} no encontrado. Por favor, selecciona otro chofer.`);
     }
 
         // Formatear la fecha para el input type="date"
@@ -530,9 +539,9 @@ export default function RecepcionProducto() {
       fecha: formattedFecha,
       cicloid: String(recepcion.cicloid) || '',
       propietarioid: String(recepcion.propietarioid) || '',
-      granjaid: granjaExists ? String(recepcion.granjaid) || '' : '',
-      carroid: carroExists ? String(recepcion.carroid) || '' : '',
-      choferid: choferExists ? String(recepcion.choferid) || '' : '',
+      granjaid: String(recepcion.granjaid) || '',
+      carroid: String(recepcion.carroid) || '',
+      choferid: String(recepcion.choferid) || '',
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
@@ -555,9 +564,9 @@ export default function RecepcionProducto() {
       fecha: formattedFecha,
       cicloid: String(recepcion.cicloid) || '',
       propietarioid: String(recepcion.propietarioid) || '',
-      granjaid: granjaExists ? String(recepcion.granjaid) || '' : '',
-      carroid: carroExists ? String(recepcion.carroid) || '' : '',
-      choferid: choferExists ? String(recepcion.choferid) || '' : '',
+      granjaid: String(recepcion.granjaid) || '',
+      carroid: String(recepcion.carroid) || '',
+      choferid: String(recepcion.choferid) || '',
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
