@@ -68,7 +68,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
       icon: Layers,
       children: [
         { id: 'recepcion', label: 'Recepcion Producto', icon: Package },
-        { id: 'empaque', label: 'Registrar Empaque', icon: Package2 },
+        //{ id: 'empaque', label: 'Registrar Empaque', icon: Package2 },
         { id: 'clasificacion', label: 'Clasificación', icon: Tag },
         { id: 'concentrado', label: 'Generar Concentrado', icon: FileText },
         { id: 'concentrado-clientes', label: 'Generar Concentrado Clientes', icon: BarChart3 },

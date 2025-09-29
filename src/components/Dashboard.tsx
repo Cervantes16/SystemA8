@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 //import DataTable from './DataTable';
 import RecepcionProducto from './operations/RecepcionProducto';
 import Clasificacion from './operations/Clasificacion';
-import Empaque from './operations/Empaque';
+//import Empaque from './operations/Empaque';
 import GeneracionEtiquetas from './operations/GeneracionEtiquetas';
 import Bodegas from './catalogs/Bodega';
 import Transportes from './catalogs/Transportes';
@@ -38,7 +38,7 @@ export default function Dashboard() {
     //recepcion: 'Recepcion',
     recepcion:'RecepcionProducto',
     clasificacion: 'Clasificacion',
-    empaque: 'RegistrarEmpaque',
+    //empaque: 'RegistrarEmpaque',
     //empaque: 'Empaque',
     //etiquetas: 'GeneracionEtiquetas',
     etiquetas: 'GenerarEtiquetas',
@@ -108,8 +108,8 @@ export default function Dashboard() {
         return <RecepcionProducto />;
       case 'clasificacion':
         return <Clasificacion />;
-      case 'empaque':
-        return <Empaque />;
+      //case 'empaque':
+      //  return <Empaque />;
       case 'etiquetas':
         return <GeneracionEtiquetas />;
       default:
