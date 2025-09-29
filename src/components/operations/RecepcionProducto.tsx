@@ -455,24 +455,22 @@ export default function RecepcionProducto() {
     if (selectedRow === null) return;
     const recepcion = recepciones[selectedRow];
     
-    const camposASetear: [string, any][] = [
-      ['idpropietario', recepcion.idpropietario || '']
-    ];
+  // Actualizar filteredGranjas basado en el propietario de la recepción
+  const selectedPropietarioId = parseInt(recepcion.idpropietario) || 0;
+  const filtered = granjas.filter((granja) => granja.propietarioid === selectedPropietarioId);
+  setFilteredGranjas(filtered);
 
-    // Ejecutar handleInputChange por cada campo
-    camposASetear.forEach(([field, value]) => {
-      handleInputChange(field, value);
-    });
-    setFormData({
+  // Actualizar formData con todos los valores de la recepción seleccionada
+  setFormData({
       idRecepcion: recepcion.idrecepcion?.toString() || '',
-      foliofisico: recepcion.foliofisico,
-      lote: recepcion.lote,
-      fecha: recepcion.fecha,
-      idciclos: recepcion.idciclo,
-      idpropietario: recepcion.idpropietario,
-      idgranja: recepcion.idgranja,
-      idcarro: '',
-      idchofer: '',
+      foliofisico: recepcion.foliofisico || '',
+      lote: recepcion.lote || '',
+      fecha: recepcion.fecha || new Date().toISOString().split('T')[0],
+      idciclos: recepcion.idciclo || '',
+      idpropietario: recepcion.idpropietario || '',
+      idgranja: recepcion.idgranja || '', // Mantener idgranja de la recepción
+      idcarro: recepcion.idcarro || '',   // Mantener idcarro de la recepción
+      idchofer: recepcion.idchofer || '', // Mantener idchofer de la recepción
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
@@ -485,7 +483,9 @@ export default function RecepcionProducto() {
     setDetalleItems([...getDetalleRecepcion()]);
     setShowForm(true);
     setEditingDetailIndex(null);
-  };
+    // Llamar a handleInputChange para idpropietario si es necesario
+    handleInputChange('idpropietario', recepcion.idpropietario || '');
+};
 
   const getDetalleRecepcion = (): RecepcionDetalle[] => {
     if (selectedRow === null) return [];
