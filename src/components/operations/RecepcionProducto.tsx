@@ -10,8 +10,10 @@ interface RecepcionItem {
   fecha: string;
   lote: string;
   idciclo: string;
-  idgranja: string;
   idpropietario: string;
+  idgranja: string;
+  idcarro: string;
+  idchofer: string;
   totalKilos: number;
   subida: string;
 }
@@ -19,17 +21,17 @@ interface RecepcionItem {
 interface RecepcionDetalle {
   estanque: number;
   taras: number;
-  kgxTara: number;
-  tKilogramos: number;
-  basura: number;
-  total: number;
-  pPromedio: number;
+  kilogramosxtara: number;
+  kilogramosbasura: number;
+  totalkilogramos: number;
+  pesopromedio: number;
 }
 
 interface Granja {
   idgranja?: number;
   granja?: string;
   status?: string;
+  propietarioid?: number;
 }
 
 interface Ciclo {
@@ -67,6 +69,7 @@ export default function RecepcionProducto() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [nextId, setNextId] = useState<number | null>(null);
+  const [filteredGranjas, setFilteredGranjas] = useState<Granja[]>([]); // New state for filtered granjas
 
   const [formData, setFormData] = useState({
     idRecepcion: '',
@@ -263,11 +266,22 @@ export default function RecepcionProducto() {
     setFormData((prev) => {
       const newValue = field === 'fecha' || field === 'foliofisico' || field === 'lote' || field === 'estanque' || field === 'observacion' || field === 'idciclos' || field === 'idpropietario' || field === 'idgranja' || field === 'idcarro' || field === 'idchofer' || field === 'esMaquilla' ? value : parseFloat(value) || 0;
       const newData = { ...prev, [field]: newValue };
+
       if (field === 'taras' || field === 'kgxTara') {
         const taras = field === 'taras' ? newValue : prev.taras;
         const kgxTara = field === 'kgxTara' ? newValue : prev.kgxTara;
         newData.totalKilos = parseFloat((taras * kgxTara).toFixed(4)) || 0;
       }
+
+      // Reset idgranja when propietario changes
+      if (field === 'idpropietario') {
+        newData.idgranja = ''; // Reset granja selection
+        // Filter granjas based on selected propietario
+        const selectedPropietarioId = parseInt(value) || 0;
+        const filtered = granjas.filter((granja) => granja.propietarioid === selectedPropietarioId);
+        setFilteredGranjas(filtered);
+      }
+
       return newData;
     });
     setErrorMessage('');
@@ -311,15 +325,13 @@ export default function RecepcionProducto() {
       subida: 'N',
       status: 'A',
     };
-
     const detalles = detalleItems.map(d => ({
       foliofisico: formData.foliofisico,
       estanque: d.estanque,
-      pesopromedio: d.pPromedio,
+      pPromedio: d.pesopromedio,
       taras: d.taras,
-      kilogramosxtara: d.kgxTara,
-      totalkilogramos: d.tKilogramos,
-      kilogramosbasura: d.basura,
+      kgxTara: d.kilogramosxtara,
+      basura: d.kilogramosbasura,
     }));
 
     try {
@@ -366,11 +378,10 @@ export default function RecepcionProducto() {
     const nuevoDetalle: RecepcionDetalle = {
       estanque: parseInt(formData.estanque) || 0,
       taras: formData.taras || 0,
-      kgxTara: formData.kgxTara || 0,
-      tKilogramos: formData.totalKilos || 0,
-      basura: formData.kgBasura || 0,
-      total: (formData.totalKilos || 0) - (formData.kgBasura || 0),
-      pPromedio: formData.pPromedio || 0,
+      kilogramosxtara: formData.kgxTara || 0,
+      kilogramosbasura: formData.kgBasura || 0,
+      totalkilogramos: (formData.totalKilos || 0) - (formData.kgBasura || 0),
+      pesopromedio: formData.pPromedio || 0,
     };
 
     if (editingDetailIndex !== null) {
@@ -403,15 +414,15 @@ export default function RecepcionProducto() {
       ...prev,
       estanque: detail.estanque.toString(),
       taras: detail.taras,
-      kgxTara: detail.kgxTara,
-      kgBasura: detail.basura,
-      totalKilos: detail.tKilogramos,
-      pPromedio: detail.pPromedio,
+      kgxTara: detail.kilogramosxtara,
+      kgBasura: detail.kilogramosbasura,
+      totalKilos: detail.totalkilogramos,
+      pPromedio: detail.pesopromedio,
     }));
     setEditingDetailIndex(index);
   };
 
-  const getTotalGeneral = () => detalleItems.reduce((total, item) => total + item.total, 0);
+  const getTotalGeneral = () => detalleItems.reduce((total, item) => total + Number(item.totalkilogramos), 0);
 
   const resetForm = () => {
     setShowForm(false);
@@ -443,6 +454,15 @@ export default function RecepcionProducto() {
   const handleModify = () => {
     if (selectedRow === null) return;
     const recepcion = recepciones[selectedRow];
+    
+    const camposASetear: [string, any][] = [
+      ['idpropietario', recepcion.idpropietario || '']
+    ];
+
+    // Ejecutar handleInputChange por cada campo
+    camposASetear.forEach(([field, value]) => {
+      handleInputChange(field, value);
+    });
     setFormData({
       idRecepcion: recepcion.idrecepcion?.toString() || '',
       foliofisico: recepcion.foliofisico,
@@ -585,8 +605,6 @@ export default function RecepcionProducto() {
                   </button>
                 </div>
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Granja:</label>
                 <div className="flex">
@@ -594,9 +612,10 @@ export default function RecepcionProducto() {
                     value={formData.idgranja}
                     onChange={(e) => handleInputChange('idgranja', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
+                    disabled={!formData.idpropietario} // Disable until propietario is selected
                   >
                     <option value="">Seleccionar...</option>
-                    {granjas?.map((granja) => (
+                    {filteredGranjas.map((granja) => (
                       <option key={granja.idgranja} value={granja.idgranja?.toString() || ''}>
                         {granja.granja}
                       </option>
@@ -605,6 +624,7 @@ export default function RecepcionProducto() {
                   <button
                     type="button"
                     className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600"
+                    disabled={!formData.idpropietario}
                   >
                     <Search className="w-4 h-4" />
                   </button>
@@ -759,11 +779,11 @@ export default function RecepcionProducto() {
                       {detalleItems.map((item, idx) => (
                         <tr key={idx} className="border-b">
                           <td className="px-2 py-1">{item.estanque}</td>
-                          <td className="px-2 py-1">{item.taras.toFixed(4)}</td>
-                          <td className="px-2 py-1">{item.kgxTara.toFixed(4)}</td>
-                          <td className="px-2 py-1">{item.tKilogramos.toFixed(4)}</td>
-                          <td className="px-2 py-1">{item.basura.toFixed(4)}</td>
-                          <td className="px-2 py-1">{item.pPromedio.toFixed(4)}</td>
+                          <td className="px-2 py-1">{Number(item.taras).toFixed(4)}</td>
+                          <td className="px-2 py-1">{Number(item.kilogramosxtara).toFixed(4)}</td>
+                          <td className="px-2 py-1">{Number(item.totalkilogramos).toFixed(4)}</td>
+                          <td className="px-2 py-1">{Number(item.kilogramosbasura).toFixed(4)}</td>
+                          <td className="px-2 py-1">{Number(item.pesopromedio).toFixed(4)}</td>
                           <td className="px-2 py-1 flex gap-2">
                             <button
                               onClick={() => handleEditDetail(idx)}
@@ -933,7 +953,7 @@ export default function RecepcionProducto() {
                   <td className="px-4 py-3 text-sm text-gray-900">{granja ? granja.granja : row.idgranja}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{propietario ? propietario.nombre : row.idpropietario}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
-                    {detallesPorRecepcion[row.idrecepcion || 0]?.reduce((sum, d) => sum + d.total, 0).toFixed(3) || '0'}
+                    {detallesPorRecepcion[row.idrecepcion || 0]?.reduce((sum, d) => sum + Number(d.totalkilogramos), 0).toFixed(3) || '0'}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.subida}</td>
                 </tr>
@@ -959,7 +979,6 @@ export default function RecepcionProducto() {
                   <th className="px-2 py-1 text-left">ESTANQUE</th>
                   <th className="px-2 py-1 text-left">TARAS</th>
                   <th className="px-2 py-1 text-left">KGXTARA</th>
-                  <th className="px-2 py-1 text-left">T. KILOGRAMOS</th>
                   <th className="px-2 py-1 text-left">BASURA</th>
                   <th className="px-2 py-1 text-left">TOTAL</th>
                   <th className="px-2 py-1 text-left">P. PROMEDIO</th>
@@ -969,19 +988,18 @@ export default function RecepcionProducto() {
                 {getDetalleRecepcion().map((detalle, idx) => (
                   <tr key={idx} className="border-b">
                     <td className="px-2 py-1">{detalle.estanque}</td>
-                    <td className="px-2 py-1">{detalle.taras.toFixed(2)}</td>
-                    <td className="px-2 py-1">{detalle.kgxTara.toFixed(2)}</td>
-                    <td className="px-2 py-1">{detalle.tKilogramos.toFixed(2)}</td>
-                    <td className="px-2 py-1">{detalle.basura.toFixed(2)}</td>
-                    <td className="px-2 py-1">{detalle.total.toFixed(2)}</td>
-                    <td className="px-2 py-1">{detalle.pPromedio.toFixed(2)}</td>
+                    <td className="px-2 py-1">{Number(detalle.taras).toFixed(2)}</td>
+                    <td className="px-2 py-1">{Number(detalle.kilogramosxtara).toFixed(2)}</td>
+                    <td className="px-2 py-1">{Number(detalle.kilogramosbasura).toFixed(2)}</td>
+                    <td className="px-2 py-1">{Number(detalle.totalkilogramos).toFixed(2)}</td>
+                    <td className="px-2 py-1">{Number(detalle.pesopromedio).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="mt-2 text-right">
               <span className="text-sm font-medium text-gray-700">
-                Total: {getDetalleRecepcion().reduce((sum, item) => sum + item.total, 0).toFixed(2)} kg
+                Total: {getDetalleRecepcion().reduce((sum, item) => sum + Number(item.totalkilogramos), 0).toFixed(2)} kg
               </span>
             </div>
           </div>

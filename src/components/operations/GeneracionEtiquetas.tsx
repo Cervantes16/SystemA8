@@ -91,7 +91,7 @@ const GeneracionEtiquetas: React.FC = () => {
     posicion: "1-1A1",
   });
 
-  const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
+const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
     { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
   ]);
@@ -125,8 +125,8 @@ const GeneracionEtiquetas: React.FC = () => {
     cantidadEliminar: 0,
     motivo: "",
   });
-
-  const componentRef = useRef<HTMLDivElement>(null);
+  
+  //const componentRef = useRef<HTMLDivElement>(null);
 
   // Actualizar día Juliano cuando cambia la fecha
   /*useEffect(() => {
@@ -143,7 +143,7 @@ const GeneracionEtiquetas: React.FC = () => {
     if (formData.fechaEmpaque) {
       const [year, month, day] = formData.fechaEmpaque.split("-").map(Number);
       const date = new Date(year, month - 1, day); // ← Local, sin desfase por zona horaria
-
+      
       console.log("Calculating Julian Day for date:", date);
 
       const startOfYear = new Date(year, 0, 1);
@@ -241,7 +241,7 @@ const GeneracionEtiquetas: React.FC = () => {
       idProducto +
       numeroEtiqueta
     );//, SubLote: ${formData.sublote}
-    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, AñoProduccion: ${anio}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Barras: ${barcode}, Hora: ${formData.horaEmpaque}`;
+    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, AñoProduccion: ${anio}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Barras: ${barcode}`;//, Hora: ${formData.horaEmpaque}
     return { barcode, qrContent };
   });
 
@@ -250,7 +250,7 @@ const GeneracionEtiquetas: React.FC = () => {
       alert("Por favor, ingrese un número válido de etiquetas/cartones.");
       return;
     }
-
+    
     if (!formData.fechaEmpaque) {
       alert("Por favor, seleccione una fecha de empaque válida.");
       return;
@@ -400,7 +400,7 @@ const GeneracionEtiquetas: React.FC = () => {
   const uniqueLotes = Array.from(new Set(detalleEtiquetas.map((d) => d.sLote)));
   const uniqueTallas = Array.from(new Set(detalleEtiquetas.map((d) => d.talla)));
   const uniqueProductos = Array.from(new Set(detalleEtiquetas.map((d) => d.producto)));
-
+  
   const EtiquetaPrint = React.forwardRef<HTMLDivElement>((props, ref) => {
     const [year, month, day] = formData.fechaEmpaque.split("-").map(Number);
     const fecha = new Date(year, month - 1, day);
@@ -749,6 +749,43 @@ const GeneracionEtiquetas: React.FC = () => {
                   <p className="font-mono">{codigo.barcode}</p>
                   <Barcode value={codigo.barcode} height={60} displayValue={true} />
                   <QRCodeSVG value={codigo.qrContent} size={120} level="M" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded shadow border max-h-[400px] overflow-y-auto mt-4">
+            <h2 className="text-lg font-semibold">Vista Previa</h2>
+            <div className="space-y-6">
+              {codigos.map((codigo, idx) => (
+                <div
+                  key={idx}
+                  style={{ width: "300px", padding: "20px", border: "1px solid #000", fontSize: "12px" }}
+                >
+                  <div><strong> {formData.nombrePlanta}</strong></div>
+                  <div><strong>{granjas.find(g => g.id === formData.granja)?.nombre || ''}</strong></div>
+                  <div><strong> {formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</strong></div>
+                  <div><strong>{tallas.find(t => t.id === formData.talla)?.rango || ''}</strong></div>
+                  <div><strong>L  {`${formData.lote}-${new Date(formData.fechaEmpaque).getFullYear().toString().slice(-2)}`} </strong></div>
+                  
+                  <div><strong>Empaque:</strong> {new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                  <div>
+                    <strong>C. Antes De:</strong> {new Date(new Date(formData.fechaEmpaque).setFullYear(new Date(formData.fechaEmpaque).getFullYear() + 2)).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </div>
+                  <div><strong>Concerve -18 °C</strong></div>
+                  <div><strong>Metabisulfito:</strong> {formData.metabisulfato ? "SI" : "NO"}</div>
+                  <div><strong>Cont. Nto.  {formData.presentacionKgs} kgs. </strong></div>
+                  <div><strong>Hora:</strong> {formData.horaEmpaque}</div>
+                  {parseFloat(formData.camarones) > 0 && <div><strong>Camarones:</strong> {formData.camarones}</div>}
+                  <div><strong>Uniformidad:</strong> {parseFloat(formData.uniformidad).toFixed(2)}</div>
+                  <div><strong>Barras:</strong> {codigo.barcode}</div>
+                  <div><strong>Leyenda Alergias:</strong> "Contiene alérgenos (crustáceos)"</div>
+                  <div><strong>Leyenda Alimentaria:</strong> "Producto alimenticio"</div>
+                  <div style={{ marginTop: "10px" }}>
+                    <Barcode value={codigo.barcode} height={50} displayValue={true} />
+                  </div>
+                  <div style={{ marginTop: "10px" }}>
+                    <QRCodeSVG value={codigo.qrContent} size={100} level="M" />
+                  </div>
                 </div>
               ))}
             </div>
