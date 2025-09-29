@@ -5,17 +5,18 @@ import { getCarros } from '../../api/carrosApi';
 import { useAuth } from '../../context/AuthContext';
 
 interface RecepcionItem {
-  idrecepcion?: number;
+  recepcionid?: number;
   foliofisico: string;
   fecha: string;
   lote: string;
-  idciclo: string;
-  idpropietario: string;
-  idgranja: string;
-  idcarro: string;
-  idchofer: string;
+  cicloid: string;
+  propietarioid: string;
+  granjaid: string;
+  carroid: string;
+  choferid: string;
   totalKilos: number;
   subida: string;
+  maquila?: string;
 }
 
 interface RecepcionDetalle {
@@ -28,33 +29,33 @@ interface RecepcionDetalle {
 }
 
 interface Granja {
-  idgranja?: number;
+  granjaid?: number | string;
   granja?: string;
   status?: string;
-  propietarioid?: number;
+  propietarioid?: number | string;
 }
 
 interface Ciclo {
-  cicloid?: number;
+  cicloid?: number | string;
   año?: string;
   ciclo?: string;
   status?: string;
 }
 
 interface Propietario {
-  idpropietario?: number;
+  propietarioid?: number | string;
   nombre?: string;
   status?: string;
 }
 
 interface Carro {
-  idcarro?: number;
+  carroid?: number | string;
   placas?: string;
   status?: string;
 }
 
 interface Chofer {
-  idchofer?: number;
+  choferid?: number | string;
   nombre?: string;
   status?: string;
 }
@@ -69,18 +70,17 @@ export default function RecepcionProducto() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [nextId, setNextId] = useState<number | null>(null);
-  const [filteredGranjas, setFilteredGranjas] = useState<Granja[]>([]); // New state for filtered granjas
-
+  const [filteredGranjas, setFilteredGranjas] = useState<Granja[]>([]);
   const [formData, setFormData] = useState({
-    idRecepcion: '',
+    recepcionid: '',
     foliofisico: '',
     lote: '',
     fecha: new Date().toISOString().split('T')[0],
-    idciclos: '',
-    idpropietario: '',
-    idgranja: '',
-    idcarro: '',
-    idchofer: '',
+    cicloid: '',
+    propietarioid: '',
+    granjaid: '',
+    carroid: '',
+    choferid: '',
     taras: 0,
     kgxTara: 45.0,
     kgBasura: 0,
@@ -129,9 +129,27 @@ export default function RecepcionProducto() {
       console.log('API Response (recepciones):', res.data);
       let recepcionesArray: RecepcionItem[] = [];
       if (Array.isArray(res.data)) {
-        recepcionesArray = res.data;
+        recepcionesArray = res.data.map((r: RecepcionItem) => ({
+          ...r,
+          recepcionid: String(r.recepcionid),
+          granjaid: String(r.granjaid),
+          carroid: String(r.carroid),
+          choferid: String(r.choferid),
+          propietarioid: String(r.propietarioid),
+          cicloid: String(r.cicloid),
+          lote: String(r.lote), // Convertir lote a string
+        }));
       } else if (Array.isArray(res.data.recepciones)) {
-        recepcionesArray = res.data.recepciones;
+        recepcionesArray = res.data.recepciones.map((r: RecepcionItem) => ({
+          ...r,
+          recepcionid: String(r.recepcionid),
+          granjaid: String(r.granjaid),
+          carroid: String(r.carroid),
+          choferid: String(r.choferid),
+          propietarioid: String(r.propietarioid),
+          cicloid: String(r.cicloid),
+          lote: String(r.lote),
+        }));
       } else {
         console.error('API no devolvió un array de recepciones', res.data);
         setErrorMessage('Error: No se pudieron cargar las recepciones.');
@@ -142,7 +160,7 @@ export default function RecepcionProducto() {
       const detalles: { [key: number]: RecepcionDetalle[] } = {};
       await Promise.all(
         recepcionesArray.map(async (r) => {
-          const id = r.idrecepcion;
+          const id = parseInt(r.recepcionid || '0');
           if (!id) {
             console.warn(`Skipping reception with invalid ID:`, r);
             return;
@@ -200,7 +218,11 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/granjas', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setGranjas(res.data || []);
+      setGranjas(res.data.map((granja: Granja) => ({
+        ...granja,
+        granjaid: String(granja.granjaid),
+        propietarioid: String(granja.propietarioid),
+      })) || []);
     } catch (error) {
       console.error('Error fetching granjas:', error);
       setErrorMessage('Error al cargar las granjas.');
@@ -212,7 +234,10 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/ciclos', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCiclos(res.data || []);
+      setCiclos(res.data.map((ciclo: Ciclo) => ({
+        ...ciclo,
+        cicloid: String(ciclo.cicloid),
+      })) || []);
     } catch (error) {
       console.error('Error fetching ciclos:', error);
       setErrorMessage('Error al cargar los ciclos.');
@@ -224,7 +249,10 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/propietarios', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setPropietarios(res.data || []);
+      setPropietarios(res.data.map((propietario: Propietario) => ({
+        ...propietario,
+        propietarioid: String(propietario.propietarioid),
+      })) || []);
     } catch (error) {
       console.error('Error fetching propietarios:', error);
       setErrorMessage('Error al cargar los propietarios.');
@@ -235,15 +263,21 @@ export default function RecepcionProducto() {
     try {
       const res = await getCarros();
       console.log('Carros Response:', res);
+      let carrosArray: Carro[] = [];
       if (Array.isArray(res)) {
-        setCarros(res);
+        carrosArray = res;
       } else if (res.data && Array.isArray(res.data)) {
-        setCarros(res.data);
+        carrosArray = res.data;
       } else {
         console.warn('Unexpected carros response format:', res);
-        setCarros([]);
+        carrosArray = [];
       }
-      console.log('Carros Response:', res); // Existing log
+      const normalizedCarros = carrosArray.map((carro: Carro) => ({
+        ...carro,
+        carroid: String(carro.carroid),
+      }));
+      setCarros(normalizedCarros);
+      console.log('Normalized Carros:', normalizedCarros);
     } catch (error) {
       console.error('Error fetching carros:', error);
       setErrorMessage('Error al cargar los carros.');
@@ -255,7 +289,12 @@ export default function RecepcionProducto() {
       const res = await axios.get('http://localhost:3000/api/choferes', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setChoferes(res.data || []);
+      const normalizedChoferes = res.data.map((chofer: Chofer) => ({
+        ...chofer,
+        choferid: String(chofer.choferid),
+      }));
+      setChoferes(normalizedChoferes);
+      console.log('Normalized Choferes:', normalizedChoferes);
     } catch (error) {
       console.error('Error fetching choferes:', error);
       setErrorMessage('Error al cargar los choferes.');
@@ -264,7 +303,7 @@ export default function RecepcionProducto() {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => {
-      const newValue = field === 'fecha' || field === 'foliofisico' || field === 'lote' || field === 'estanque' || field === 'observacion' || field === 'idciclos' || field === 'idpropietario' || field === 'idgranja' || field === 'idcarro' || field === 'idchofer' || field === 'esMaquilla' ? value : parseFloat(value) || 0;
+      const newValue = field === 'fecha' || field === 'foliofisico' || field === 'lote' || field === 'estanque' || field === 'observacion' || field === 'cicloid' || field === 'propietarioid' || field === 'granjaid' || field === 'carroid' || field === 'choferid' || field === 'esMaquilla' ? value : parseFloat(value) || 0;
       const newData = { ...prev, [field]: newValue };
 
       if (field === 'taras' || field === 'kgxTara') {
@@ -273,13 +312,12 @@ export default function RecepcionProducto() {
         newData.totalKilos = parseFloat((taras * kgxTara).toFixed(4)) || 0;
       }
 
-      // Reset idgranja when propietario changes
-      if (field === 'idpropietario') {
-        newData.idgranja = ''; // Reset granja selection
-        // Filter granjas based on selected propietario
-        const selectedPropietarioId = parseInt(value) || 0;
+      if (field === 'propietarioid') {
+        newData.granjaid = '';
+        const selectedPropietarioId = String(value);
         const filtered = granjas.filter((granja) => granja.propietarioid === selectedPropietarioId);
         setFilteredGranjas(filtered);
+        console.log('Filtered Granjas in handleInputChange:', filtered);
       }
 
       return newData;
@@ -288,13 +326,13 @@ export default function RecepcionProducto() {
   };
 
   const validateForm = () => {
-    if (!formData.idRecepcion) return 'El ID de recepción es requerido';
+    if (!formData.recepcionid) return 'El ID de recepción es requerido';
     if (!formData.foliofisico) return 'El folio físico es requerido';
     if (!formData.lote) return 'El lote es requerido';
     if (!formData.fecha) return 'La fecha es requerida';
-    if (!formData.idciclos) return 'El ciclo es requerido';
-    if (!formData.idpropietario) return 'El propietario es requerido';
-    if (!formData.idgranja) return 'La granja es requerida';
+    if (!formData.cicloid) return 'El ciclo es requerido';
+    if (!formData.propietarioid) return 'El propietario es requerido';
+    if (!formData.granjaid) return 'La granja es requerida';
     if (detalleItems.length === 0) return 'Debe agregar al menos un detalle';
     return '';
   };
@@ -312,14 +350,14 @@ export default function RecepcionProducto() {
       foliofisico: formData.foliofisico,
       lote: formData.lote,
       fecha: formData.fecha,
-      idgranja: formData.idgranja,
+      granjaid: formData.granjaid,
       taras: formData.taras,
       totalkilogramos: getTotalGeneral(),
-      idcarro: formData.idcarro || null,
-      idchofer: formData.idchofer || null,
+      carroid: formData.carroid || null,
+      choferid: formData.choferid || null,
       observacion: formData.observacion,
-      idpropietario: formData.idpropietario,
-      idciclo: formData.idciclos,
+      propietarioid: formData.propietarioid,
+      cicloid: formData.cicloid,
       procesada: 'N',
       maquila: formData.esMaquilla ? 'Y' : 'N',
       subida: 'N',
@@ -350,7 +388,7 @@ export default function RecepcionProducto() {
 
   const handleDeleteRecepcion = async () => {
     if (selectedRow === null) return;
-    const recepcionId = recepciones[selectedRow].idrecepcion;
+    const recepcionId = recepciones[selectedRow].recepcionid;
     if (!recepcionId) {
       console.error('No valid recepcionId for deletion');
       return;
@@ -412,7 +450,7 @@ export default function RecepcionProducto() {
     const detail = detalleItems[index];
     setFormData((prev) => ({
       ...prev,
-      estanque: detail.estanque.toString(),
+      estanque: String(detail.estanque),
       taras: detail.taras,
       kgxTara: detail.kilogramosxtara,
       kgBasura: detail.kilogramosbasura,
@@ -430,16 +468,17 @@ export default function RecepcionProducto() {
     setDetalleItems([]);
     setEditingDetailIndex(null);
     setErrorMessage('');
+    setFilteredGranjas([]);
     setFormData({
-      idRecepcion: nextId?.toString() || '',
+      recepcionid: nextId?.toString() || '',
       foliofisico: '',
       lote: '',
       fecha: new Date().toISOString().split('T')[0],
-      idciclos: '',
-      idpropietario: '',
-      idgranja: '',
-      idcarro: '',
-      idchofer: '',
+      cicloid: '',
+      propietarioid: '',
+      granjaid: '',
+      carroid: '',
+      choferid: '',
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
@@ -455,22 +494,45 @@ export default function RecepcionProducto() {
     if (selectedRow === null) return;
     const recepcion = recepciones[selectedRow];
     
+    console.log('Recepcion seleccionada:', recepcion);
+    console.log('Carros disponibles:', carros);
+    console.log('Choferes disponibles:', choferes);
+
   // Actualizar filteredGranjas basado en el propietario de la recepción
-  const selectedPropietarioId = parseInt(recepcion.idpropietario) || 0;
-  const filtered = granjas.filter((granja) => granja.propietarioid === selectedPropietarioId);
-  setFilteredGranjas(filtered);
+    const selectedPropietarioId = String(recepcion.propietarioid);
+    const filtered = granjas.filter((granja) => granja.propietarioid === selectedPropietarioId);
+    setFilteredGranjas(filtered);
+    console.log('Filtered Granjas:', filtered);
+
+    // Verificar si granjaid, carroid y choferid existen en las listas correspondientes
+    const granjaExists = filtered.some((granja) => String(granja.granjaid) === String(recepcion.granjaid));
+    const carroExists = carros.some((carro) => String(carro.carroid) === String(recepcion.carroid));
+    const choferExists = choferes.some((chofer) => String(chofer.choferid) === String(recepcion.choferid));
+
+    if (!granjaExists && recepcion.granjaid) {
+      console.warn(`Granja con id ${recepcion.granjaid} no encontrada para propietario ${selectedPropietarioId}`);
+    }
+    if (!carroExists && recepcion.carroid) {
+      console.warn(`Carro con id ${recepcion.carroid} no encontrado en la lista de carros`);
+    }
+    if (!choferExists && recepcion.choferid) {
+      console.warn(`Chofer con id ${recepcion.choferid} no encontrado en la lista de choferes`);
+    }
+
+        // Formatear la fecha para el input type="date"
+  const formattedFecha = recepcion.fecha ? recepcion.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
 
   // Actualizar formData con todos los valores de la recepción seleccionada
   setFormData({
-      idRecepcion: recepcion.idrecepcion?.toString() || '',
+      recepcionid: String(recepcion.recepcionid) || '',
       foliofisico: recepcion.foliofisico || '',
-      lote: recepcion.lote || '',
-      fecha: recepcion.fecha || new Date().toISOString().split('T')[0],
-      idciclos: recepcion.idciclo || '',
-      idpropietario: recepcion.idpropietario || '',
-      idgranja: recepcion.idgranja || '', // Mantener idgranja de la recepción
-      idcarro: recepcion.idcarro || '',   // Mantener idcarro de la recepción
-      idchofer: recepcion.idchofer || '', // Mantener idchofer de la recepción
+      lote: String(recepcion.lote) || '',
+      fecha: formattedFecha,
+      cicloid: String(recepcion.cicloid) || '',
+      propietarioid: String(recepcion.propietarioid) || '',
+      granjaid: granjaExists ? String(recepcion.granjaid) || '' : '',
+      carroid: carroExists ? String(recepcion.carroid) || '' : '',
+      choferid: choferExists ? String(recepcion.choferid) || '' : '',
       taras: 0,
       kgxTara: 45.0,
       kgBasura: 0,
@@ -478,18 +540,38 @@ export default function RecepcionProducto() {
       estanque: '',
       totalKilos: 0,
       observacion: 'SIN OBSERVACION',
-      esMaquilla: false,
+      esMaquilla: recepcion.maquila === 'Y',
     });
+
+    // Cargar los detalles de la recepción seleccionada
     setDetalleItems([...getDetalleRecepcion()]);
     setShowForm(true);
     setEditingDetailIndex(null);
-    // Llamar a handleInputChange para idpropietario si es necesario
-    handleInputChange('idpropietario', recepcion.idpropietario || '');
-};
+
+    console.log('FormData después de modificar:', {
+      recepcionid: String(recepcion.recepcionid) || '',
+      foliofisico: recepcion.foliofisico || '',
+      lote: String(recepcion.lote) || '',
+      fecha: formattedFecha,
+      cicloid: String(recepcion.cicloid) || '',
+      propietarioid: String(recepcion.propietarioid) || '',
+      granjaid: granjaExists ? String(recepcion.granjaid) || '' : '',
+      carroid: carroExists ? String(recepcion.carroid) || '' : '',
+      choferid: choferExists ? String(recepcion.choferid) || '' : '',
+      taras: 0,
+      kgxTara: 45.0,
+      kgBasura: 0,
+      pPromedio: 0,
+      estanque: '',
+      totalKilos: 0,
+      observacion: 'SIN OBSERVACION',
+      esMaquilla: recepcion.maquila === 'Y',
+    });
+  };
 
   const getDetalleRecepcion = (): RecepcionDetalle[] => {
     if (selectedRow === null) return [];
-    const recepcionId = recepciones[selectedRow].idrecepcion;
+    const recepcionId = recepciones[selectedRow].recepcionid;
     return detallesPorRecepcion[recepcionId || 0] || [];
   };
 
@@ -521,7 +603,7 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Id Recepción:</label>
                 <input
                   type="text"
-                  value={formData.idRecepcion}
+                  value={formData.recepcionid}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                   placeholder="1019"
@@ -570,13 +652,13 @@ export default function RecepcionProducto() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ciclos:</label>
                 <select
-                  value={formData.idciclos}
-                  onChange={(e) => handleInputChange('idciclos', e.target.value)}
+                  value={formData.cicloid}
+                  onChange={(e) => handleInputChange('cicloid', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Seleccionar...</option>
                   {ciclos?.map((ciclo) => (
-                    <option key={ciclo.cicloid} value={ciclo.cicloid?.toString() || ''}>
+                    <option key={ciclo.cicloid} value={ciclo.cicloid}>
                       {`${ciclo.año}-${ciclo.ciclo}`}
                     </option>
                   ))}
@@ -586,13 +668,13 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Propietario:</label>
                 <div className="flex">
                   <select
-                    value={formData.idpropietario}
-                    onChange={(e) => handleInputChange('idpropietario', e.target.value)}
+                    value={formData.propietarioid}
+                    onChange={(e) => handleInputChange('propietarioid', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {propietarios?.map((propietario) => (
-                      <option key={propietario.idpropietario} value={propietario.idpropietario?.toString() || ''}>
+                      <option key={propietario.propietarioid} value={propietario.propietarioid}>
                         {propietario.nombre}
                       </option>
                     ))}
@@ -609,14 +691,14 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Granja:</label>
                 <div className="flex">
                   <select
-                    value={formData.idgranja}
-                    onChange={(e) => handleInputChange('idgranja', e.target.value)}
+                    value={formData.granjaid}
+                    onChange={(e) => handleInputChange('granjaid', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
-                    disabled={!formData.idpropietario} // Disable until propietario is selected
+                    disabled={!formData.propietarioid}
                   >
                     <option value="">Seleccionar...</option>
                     {filteredGranjas.map((granja) => (
-                      <option key={granja.idgranja} value={granja.idgranja?.toString() || ''}>
+                      <option key={granja.granjaid} value={granja.granjaid}>
                         {granja.granja}
                       </option>
                     ))}
@@ -624,7 +706,7 @@ export default function RecepcionProducto() {
                   <button
                     type="button"
                     className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600"
-                    disabled={!formData.idpropietario}
+                    disabled={!formData.propietarioid}
                   >
                     <Search className="w-4 h-4" />
                   </button>
@@ -634,13 +716,13 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Carro:</label>
                 <div className="flex">
                   <select
-                    value={formData.idcarro || ''}
-                    onChange={(e) => handleInputChange('idcarro', e.target.value)}
+                    value={formData.carroid}
+                    onChange={(e) => handleInputChange('carroid', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {carros?.map((carro) => (
-                      <option key={carro.idcarro} value={carro.idcarro?.toString() || ''}>
+                      <option key={carro.carroid} value={carro.carroid}>
                         {carro.placas}
                       </option>
                     ))}
@@ -657,13 +739,13 @@ export default function RecepcionProducto() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chofer:</label>
                 <div className="flex">
                   <select
-                    value={formData.idchofer || ''}
-                    onChange={(e) => handleInputChange('idchofer', e.target.value)}
+                    value={formData.choferid}
+                    onChange={(e) => handleInputChange('choferid', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Seleccionar...</option>
                     {choferes?.map((chofer) => (
-                      <option key={chofer.idchofer} value={chofer.idchofer?.toString() || ''}>
+                      <option key={chofer.choferid} value={chofer.choferid}>
                         {chofer.nombre}
                       </option>
                     ))}
@@ -855,7 +937,7 @@ export default function RecepcionProducto() {
             onClick={() => {
               setShowForm(true);
               if (nextId) {
-                setFormData(prev => ({ ...prev, idRecepcion: nextId.toString() }));
+                setFormData(prev => ({ ...prev, recepcionid: String(nextId) }));
               }
             }}
             className="flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors text-sm"
@@ -934,9 +1016,9 @@ export default function RecepcionProducto() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {recepciones?.map((row, index) => {
-                const ciclo = ciclos.find(c => c.cicloid?.toString() === row.idciclo);
-                const granja = granjas.find(g => g.idgranja?.toString() === row.idgranja);
-                const propietario = propietarios.find(p => p.idpropietario?.toString() === row.idpropietario);
+                const ciclo = ciclos.find(c => c.cicloid === row.cicloid);
+                const granja = granjas.find(g => g.granjaid === row.granjaid);
+                const propietario = propietarios.find(p => p.propietarioid === row.propietarioid);
                 return (
                 <tr
                   key={index}
@@ -945,15 +1027,15 @@ export default function RecepcionProducto() {
                     selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                   }`}
                 >
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.idrecepcion}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.recepcionid}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.foliofisico}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.fecha}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{row.fecha.split('T')[0]}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.lote}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{ciclo ? `${ciclo.año}-${ciclo.ciclo}` : row.idciclo}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{granja ? granja.granja : row.idgranja}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{propietario ? propietario.nombre : row.idpropietario}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{ciclo ? `${ciclo.año}-${ciclo.ciclo}` : row.cicloid}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{granja ? granja.granja : row.granjaid}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{propietario ? propietario.nombre : row.propietarioid}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
-                    {detallesPorRecepcion[row.idrecepcion || 0]?.reduce((sum, d) => sum + Number(d.totalkilogramos), 0).toFixed(3) || '0'}
+                    {detallesPorRecepcion[row.recepcionid || 0]?.reduce((sum, d) => sum + Number(d.totalkilogramos), 0).toFixed(3) || '0'}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">{row.subida}</td>
                 </tr>
@@ -969,9 +1051,9 @@ export default function RecepcionProducto() {
               Drag a column header here to group by that column
             </div>
             <div className="mb-2 text-sm text-blue-600 font-medium">
-              Recepción ID: {recepciones[selectedRow].idrecepcion} -{' '}
-              {granjas.find(g => g.idgranja?.toString() === recepciones[selectedRow].idgranja)?.granja || recepciones[selectedRow].idgranja} -{' '}
-              {propietarios.find(p => p.idpropietario?.toString() === recepciones[selectedRow].idpropietario)?.nombre || recepciones[selectedRow].idpropietario}
+              Recepción ID: {recepciones[selectedRow].recepcionid} -{' '}
+              {granjas.find(g => g.granjaid === recepciones[selectedRow].granjaid)?.granja || recepciones[selectedRow].granjaid} -{' '}
+              {propietarios.find(p => p.propietarioid === recepciones[selectedRow].propietarioid)?.nombre || recepciones[selectedRow].propietarioid}
             </div>
             <table className="w-full mt-2 text-sm">
               <thead>
