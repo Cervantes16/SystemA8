@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowUpDown } from 'lucide-react';
+import { Plus, Edit, Printer, Trash2, Save, X, Loader2 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from '../../api/proveedoresApi';
@@ -26,7 +26,6 @@ const Proveedores: React.FC = () => {
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Proveedor; direction: 'asc' | 'desc' } | null>(null);
   const [formData, setFormData] = useState<FormData>({
     nombre: '',
     rfc: '',
@@ -42,9 +41,9 @@ const Proveedores: React.FC = () => {
         setLoading(true);
         const data = await getProveedores();
         setProveedores(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Error fetching proveedores:', err);
-        toast.error('Error al cargar los proveedores');
+      } catch (err: any) {
+        console.error('Error cargando proveedores:', err);
+        toast.error(err.response?.data?.error || 'Error al cargar los proveedores');
         setProveedores([]);
       } finally {
         setLoading(false);
@@ -121,197 +120,213 @@ const Proveedores: React.FC = () => {
     }
   };
 
-  // Handle table sorting
-  const handleSort = (key: keyof Proveedor) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig?.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-
-    const sorted = [...proveedores].sort((a, b) => {
-      if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-      if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-    setProveedores(sorted);
-  };
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <span className="ml-2 text-gray-600">Cargando proveedores...</span>
+      </div>
+    );
+  }
 
   // Render form
   if (showForm) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-400">
-            <h2 className="text-xl font-semibold text-white">
+      <div className="flex-1 bg-white h-full flex flex-col">
+        <div className="border-b border-gray-200 bg-blue-50">
+          <div className="flex items-center justify-between p-3">
+            <h2 className="text-lg font-medium text-gray-900">
               {selectedRow !== null ? 'Modificar Proveedor' : 'Nuevo Proveedor'}
             </h2>
             <button
               onClick={() => setShowForm(false)}
-              className="text-white hover:text-gray-200 transition-colors"
+              className="text-gray-500 hover:text-gray-700"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre:</label>
-                <input
-                  type="text"
-                  value={formData.nombre}
-                  onChange={(e) => handleInputChange('nombre', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">RFC:</label>
-                <input
-                  type="text"
-                  value={formData.rfc}
-                  onChange={(e) => handleInputChange('rfc', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Domicilio:</label>
-                <input
-                  type="text"
-                  value={formData.domicilio}
-                  onChange={(e) => handleInputChange('domicilio', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
-                <input
-                  type="text"
-                  value={formData.telefono}
-                  onChange={(e) => handleInputChange('telefono', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado:</label>
-                <select
-                  value={formData.estatus}
-                  onChange={(e) => handleInputChange('estatus', Number(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value={1}>Activo</option>
-                  <option value={0}>Inactivo</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors shadow-sm"
-              >
-                <Save className="w-4 h-4" /> Guardar
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
         </div>
-        <ToastContainer position="top-right" autoClose={3000} />
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 flex flex-col">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
+              <input
+                type="text"
+                value={selectedRow !== null ? proveedores[selectedRow].proveedorid : proveedores.length + 1}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre:</label>
+              <input
+                type="text"
+                value={formData.nombre}
+                onChange={(e) => handleInputChange('nombre', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">RFC:</label>
+              <input
+                type="text"
+                value={formData.rfc}
+                onChange={(e) => handleInputChange('rfc', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Domicilio:</label>
+              <input
+                type="text"
+                value={formData.domicilio}
+                onChange={(e) => handleInputChange('domicilio', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+              <input
+                type="text"
+                value={formData.telefono}
+                onChange={(e) => handleInputChange('telefono', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estado:</label>
+              <select
+                value={formData.estatus}
+                onChange={(e) => handleInputChange('estatus', Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={1}>Activo</option>
+                <option value={0}>Inactivo</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t mt-auto">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" /> Guardar
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+            >
+              Volver
+            </button>
+          </div>
+        </form>
       </div>
     );
   }
 
   // Render table
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg">
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-400">
-          <h2 className="text-xl font-semibold text-white">Consulta de Proveedores</h2>
+    <div className="flex-1 bg-white h-full flex flex-col">
+      <div className="border-b border-gray-200 bg-blue-50">
+        <div className="flex items-center justify-between p-3">
+          <h2 className="text-lg font-medium text-gray-900">Consulta de Proveedores</h2>
+          <button
+            onClick={() => setShowForm(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="p-4 flex items-center gap-3">
+        <div className="flex items-center gap-2 px-3 pb-3">
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors text-sm"
           >
             <Plus className="w-4 h-4" /> Nuevo
           </button>
           <button
             onClick={handleModify}
             disabled={selectedRow === null}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
           >
             <Edit className="w-4 h-4" /> Modificar
           </button>
           <button
+            onClick={() => console.log('Imprimir proveedores')}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm"
+          >
+            <Printer className="w-4 h-4" /> Imprimir
+          </button>
+          <button
             onClick={handleDelete}
             disabled={selectedRow === null}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white rounded-md transition-colors text-sm"
           >
             <Trash2 className="w-4 h-4" /> Eliminar
           </button>
+          <button
+            onClick={() => setShowForm(false)}
+            className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm"
+          >
+            Salir
+          </button>
         </div>
-
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="p-6 text-center text-gray-500">Cargando proveedores...</div>
-          ) : proveedores.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No hay proveedores disponibles</div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-200 text-gray-700 text-sm font-semibold uppercase tracking-wide">
-                  <th className="px-6 py-3 text-left cursor-pointer" onClick={() => handleSort('proveedorid')}>
-                    ID <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                  </th>
-                  <th className="px-6 py-3 text-left cursor-pointer" onClick={() => handleSort('nombre')}>
-                    Nombre <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                  </th>
-                  <th className="px-6 py-3 text-left cursor-pointer" onClick={() => handleSort('rfc')}>
-                    RFC <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                  </th>
-                  <th className="px-6 py-3 text-left cursor-pointer" onClick={() => handleSort('domicilio')}>
-                    Domicilio <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                  </th>
-                  <th className="px-6 py-3 text-left cursor-pointer" onClick={() => handleSort('telefono')}>
-                    Teléfono <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                  </th>
-                  <th className="px-6 py-3 text-left">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {proveedores.map((p, i) => (
-                  <tr
-                    key={p.proveedorid}
-                    onClick={() => setSelectedRow(i)}
-                    className={`cursor-pointer hover:bg-blue-50 transition-colors ${
-                      selectedRow === i ? 'bg-blue-100' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-900">{p.proveedorid}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{p.nombre}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{p.rfc}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{p.domicilio}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{p.telefono}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{p.estatus === 1 ? 'Activo' : 'Inactivo'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        <ToastContainer position="top-right" autoClose={3000} />
       </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <table className="w-full">
+          <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                ID
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Nombre
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                RFC
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Domicilio
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Teléfono
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Estado
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {proveedores.map((p, index) => (
+              <tr
+                key={p.proveedorid}
+                onClick={() => setSelectedRow(index)}
+                className={`cursor-pointer hover:bg-gray-50 transition-colors ${
+                  selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                }`}
+              >
+                <td className="px-4 py-3 text-sm text-gray-900">{p.proveedorid}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{p.nombre}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{p.rfc}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{p.domicilio}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{p.telefono}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{p.estatus === 1 ? 'Activo' : 'Inactivo'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };
