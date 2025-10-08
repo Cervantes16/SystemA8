@@ -3,7 +3,7 @@ import { Plus, Edit, Printer, Trash2, Save, X } from 'lucide-react';
 import axios from 'axios';
 
 interface Chofer {
-  idchofer: number;
+  choferid: number;
   nombre: string;
   domicilio: string;
   telefono: string;
@@ -12,7 +12,7 @@ interface Chofer {
 }
 
 interface FormData {
-  idchofer?: number;
+  choferid?: number;
   nombre: string;
   domicilio: string;
   telefono: string;
@@ -50,10 +50,10 @@ const Choferes: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (formData.idchofer) {
+      if (formData.choferid) {
         // Modificar chofer
-        const res = await axios.put(`http://localhost:3000/api/choferes/${formData.idchofer}`, formData);
-        setChoferes(prev => prev.map(c => c.idchofer === res.data.idchofer ? res.data : c));
+        const res = await axios.put(`http://localhost:3000/api/choferes/${formData.choferid}`, formData);
+        setChoferes(prev => prev.map(c => c.choferid === res.data.choferid ? res.data : c));
       } else {
         // Crear chofer
         const res = await axios.post('http://localhost:3000/api/choferes', formData);
@@ -80,10 +80,10 @@ const Choferes: React.FC = () => {
   // --- ELIMINAR / DESACTIVAR ---
   const handleDelete = async () => {
     if (selectedRow !== null) {
-      const id = choferes[selectedRow].idchofer;
+      const id = choferes[selectedRow].choferid;
       try {
         await axios.delete(`http://localhost:3000/api/choferes/${id}`);
-        setChoferes(prev => prev.filter(c => c.idchofer !== id));
+        setChoferes(prev => prev.filter(c => c.choferid !== id));
         setSelectedRow(null);
       } catch (err) {
         console.error('Error al eliminar chofer', err);
@@ -103,7 +103,7 @@ const Choferes: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.idchofer ? 'Modificar Chofer' : 'Nuevo Chofer'}
+              {formData.choferid ? 'Modificar Chofer' : 'Nuevo Chofer'}
             </h2>
             <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
               <X className="w-5 h-5" />
@@ -231,13 +231,13 @@ const Choferes: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {choferes.map((chofer, index) => (
               <tr
-                key={chofer.idchofer}
+                key={chofer.choferid}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                   selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-900">{chofer.idchofer}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{chofer.choferid}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{chofer.nombre}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{chofer.domicilio}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{chofer.telefono}</td>

@@ -9,7 +9,7 @@ import {
 } from '../../api/carrosApi';
 
 interface Carro {
-  idcarro: number;
+  carroid: number;
   placas: string;
   marca: string;
   modelo: string;
@@ -17,7 +17,7 @@ interface Carro {
 }
 
 interface FormData {
-  idcarro?: number;
+  carroid?: number;
   placas: string;
   marca: string;
   modelo: string;
@@ -55,8 +55,8 @@ const Transportes: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (formData.idcarro) {
-        await updateCarro(formData.idcarro, formData);
+      if (formData.carroid) {
+        await updateCarro(formData.carroid, formData);
       } else {
         await createCarro(formData);
       }
@@ -71,7 +71,7 @@ const Transportes: React.FC = () => {
 
   const handleModify = () => {
     if (selectedRow !== null) {
-      const carro = carros.find(c => c.idcarro === selectedRow);
+      const carro = carros.find(c => c.carroid === selectedRow);
       if (carro) {
         setFormData({ ...carro });
         setShowForm(true);
@@ -85,7 +85,7 @@ const Transportes: React.FC = () => {
       try {
         await markCarroInactive(selectedRow);
         setCarros(prev =>
-          prev.map(c => c.idcarro === selectedRow ? { ...c, status: 'I' } : c)
+          prev.map(c => c.carroid === selectedRow ? { ...c, status: 'I' } : c)
         );
         setSelectedRow(null);
       } catch (error) {
@@ -112,7 +112,7 @@ const Transportes: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.idcarro ? 'Modificar Transporte' : 'Nuevo Transporte'}
+              {formData.carroid ? 'Modificar Transporte' : 'Nuevo Transporte'}
             </h2>
             <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
               <X className="w-5 h-5" />
@@ -126,7 +126,7 @@ const Transportes: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
               <input
                 type="text"
-                value={formData.idcarro ?? carros.length + 1}
+                value={formData.carroid ?? carros.length + 1}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
               />
@@ -246,13 +246,13 @@ const Transportes: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {carros.map(t => (
               <tr
-                key={t.idcarro}
-                onClick={() => setSelectedRow(t.idcarro)}
+                key={t.carroid}
+                onClick={() => setSelectedRow(t.carroid)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
-                  selectedRow === t.idcarro ? 'bg-blue-100' : 'bg-white'
+                  selectedRow === t.carroid ? 'bg-blue-100' : 'bg-white'
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-900">{t.idcarro}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{t.carroid}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{t.placas}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{t.marca}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{t.modelo}</td>

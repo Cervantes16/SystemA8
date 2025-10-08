@@ -3,19 +3,19 @@ import { Plus, Edit, Printer, Trash2, Save, X } from 'lucide-react';
 import { getBodegas, createBodega, updateBodega, deleteBodega } from '../../api/bodegasApi';
 
 interface Bodega {
-  idbodega: number;
+  bodegaid: number;
   bodega: string;
   lugar: string;
   foranea: string;
-  status: string;
+  estatus: string;
 }
 
 interface FormData {
-  idbodega?: number;
+  bodegaid?: number;
   bodega: string;
   lugar: string;
   foranea: string;
-  status: string;
+  estatus: string;
 }
 
 const Bodegas: React.FC = () => {
@@ -26,7 +26,7 @@ const Bodegas: React.FC = () => {
     bodega: '',
     lugar: '',
     foranea: 'N',
-    status: 'A',
+    estatus: 'A',
   });
 
   useEffect(() => {
@@ -40,13 +40,13 @@ const Bodegas: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.idbodega) {
-      await updateBodega(formData.idbodega, formData);
+    if (formData.bodegaid) {
+      await updateBodega(formData.bodegaid, formData);
     } else {
       await createBodega(formData);
     }
     setShowForm(false);
-    setFormData({ bodega: '', lugar: '', foranea: 'N', status: 'A' });
+    setFormData({ bodega: '', lugar: '', foranea: 'N', estatus: 'A' });
     fetchBodegas();
   };
 
@@ -61,7 +61,7 @@ const Bodegas: React.FC = () => {
   const handleDelete = async () => {
     if (selectedRow !== null) {
       const bodega = bodegas[selectedRow];
-      await deleteBodega(bodega.idbodega);
+      await deleteBodega(bodega.bodegaid);
       setSelectedRow(null);
       fetchBodegas();
     }
@@ -77,7 +77,7 @@ const Bodegas: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.idbodega ? 'Modificar Bodega' : 'Nueva Bodega'}
+              {formData.bodegaid ? 'Modificar Bodega' : 'Nueva Bodega'}
             </h2>
             <button 
               onClick={() => setShowForm(false)}
@@ -90,12 +90,12 @@ const Bodegas: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-3 gap-4">
-            {formData.idbodega && (
+            {formData.bodegaid && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ID:</label>
                 <input
                   type="text"
-                  value={formData.idbodega}
+                  value={formData.bodegaid}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                 />
@@ -133,10 +133,10 @@ const Bodegas: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status (A/I):</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">estatus (A/I):</label>
               <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
+                value={formData.estatus}
+                onChange={(e) => handleInputChange('estatus', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               >
                 <option value="A">Activo</option>
@@ -211,23 +211,23 @@ const Bodegas: React.FC = () => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BODEGA</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LUGAR</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FORANEA</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ESTATUS</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {bodegas.map((bodega, index) => (
               <tr
-                key={bodega.idbodega}
+                key={bodega.bodegaid}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                   selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.idbodega}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.bodegaid}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{bodega.bodega}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{bodega.lugar}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{bodega.foranea}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{bodega.status}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{bodega.estatus}</td>
               </tr>
             ))}
           </tbody>
