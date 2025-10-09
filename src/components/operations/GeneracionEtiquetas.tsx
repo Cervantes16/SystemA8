@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import { Printer, RefreshCw, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
 import Barcode from "react-barcode";
 import { QRCodeSVG } from "qrcode.react";
-import ReactToPrint from "react-to-print";
+//import ReactToPrint from "react-to-print";
+import { toast } from "react-toastify";
+import { useAuth } from '../../context/AuthContext';
 
 // Define interfaces for TypeScript
 interface Ciclo {
   id: number;
   año: string; // e.g., '2025'
-  ciclo: string; // e.g., '2025-1'
+  ciclo: string; // e.g., '1'
   status: string; // e.g., 'A'
 }
 
@@ -91,27 +94,11 @@ const tallas = [
   { id: 3, rango: "61-70" },
 ];
 
-const bodegas: Bodega[] = [
-  { id: 1, nombre: "Bodega Central" },
-  { id: 2, nombre: "Bodega Norte" },
-];
-
-const ubicaciones: Ubicacion[] = [
-  { ubicacionid: 1, bodegaid: 1, bahia: "1", seccion: "1", piso: "1", fondo: "A", codigoubicacion: "1-1A1", qrubicacion: "1-1A1", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 2, bodegaid: 1, bahia: "1", seccion: "1", piso: "2", fondo: "A", codigoubicacion: "1-1A2", qrubicacion: "1-1A2", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 3, bodegaid: 1, bahia: "1", seccion: "1", piso: "3", fondo: "A", codigoubicacion: "1-1A3", qrubicacion: "1-1A3", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 4, bodegaid: 1, bahia: "1", seccion: "1", piso: "4", fondo: "A", codigoubicacion: "1-1A4", qrubicacion: "1-1A4", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 5, bodegaid: 1, bahia: "1", seccion: "1", piso: "1", fondo: "B", codigoubicacion: "1-1B1", qrubicacion: "1-1B1", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 6, bodegaid: 1, bahia: "1", seccion: "1", piso: "2", fondo: "B", codigoubicacion: "1-1B2", qrubicacion: "1-1B2", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 7, bodegaid: 1, bahia: "1", seccion: "1", piso: "3", fondo: "B", codigoubicacion: "1-1B3", qrubicacion: "1-1B3", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 8, bodegaid: 1, bahia: "1", seccion: "1", piso: "4", fondo: "B", codigoubicacion: "1-1B4", qrubicacion: "1-1B4", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  { ubicacionid: 11, bodegaid: 1, bahia: "1", seccion: "1", piso: "3", fondo: "C", codigoubicacion: "1-1C3", qrubicacion: "1-1C3", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-  // Example for Bodega 2
-  { ubicacionid: 12, bodegaid: 2, bahia: "2", seccion: "1", piso: "1", fondo: "C", codigoubicacion: "2-1C1", qrubicacion: "2-1C1", tarimaid: null, estado: "vacío", ultimamod: "2025-06-04 03:21:17.786524-07" },
-];
-
 const GeneracionEtiquetas: React.FC = () => {
-  const [ciclos, setCiclos] = useState<Ciclo[]>([]); // Store available cycles
+  const [ciclos, setCiclos] = useState<Ciclo[]>([]);
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
+  const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     fechaEmpaque: "2025-09-27",
     diaJuliano: "270",
@@ -174,26 +161,44 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     motivo: "",
   });
 
-  // Fetch cycles and set default to latest
+  const { token } = useAuth();
   useEffect(() => {
-    // Simulated API call to fetch cycles from ciclos table
-    const fetchCiclos = async () => {
-      // Replace with actual API call, e.g., using fetch or axios
-      const response = await Promise.resolve([
-        { id: 1, año: "2025", ciclo: "2025-1", status: "A" },
-        { id: 2, año: "2025", ciclo: "2025-2", status: "A" },
-        { id: 3, año: "2024", ciclo: "2024-1", status: "A" },
-        { id: 4, año: "2024", ciclo: "2024-2", status: "A" },
-      ]); // Mock data; replace with SELECT cicloid, año, ciclo, status FROM ciclos ORDER BY cicloid DESC
-      setCiclos(response);
-      // Set default to latest cycle (highest cicloid)
-      const latestCiclo = response.reduce((latest, ciclo) => 
-        ciclo.id > latest.id ? ciclo : latest, response[0] || { id: 0, año: "", ciclo: "", status: "" }
-      );
-      setFormData((prev) => ({ ...prev, cicloid: latestCiclo.id }));
-      setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+    const fetchData = async () => {
+      try {
+        // Fetch ciclos
+        const ciclosResponse = await axios.get('http://localhost:3000/api/ciclos', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const activeCiclos = ciclosResponse.data.filter((c: Ciclo) => c.status === 'A');
+        setCiclos(activeCiclos);
+
+        // Fetch bodegas
+        const bodegasResponse = await axios.get('http://localhost:3000/api/bodegas', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setBodegas(bodegasResponse.data);
+
+        // Fetch ubicaciones (only estado = 'vacío')
+        const ubicacionesResponse = await axios.get('http://localhost:3000/api/ubicaciones', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUbicaciones(ubicacionesResponse.data);
+
+        // Set default to latest cycle
+        const latestCiclo = activeCiclos.reduce(
+          (latest: Ciclo, ciclo: Ciclo) => 
+            ciclo.id > latest.id ? ciclo : latest, 
+          activeCiclos[0] || { id: 0, año: "", ciclo: "", status: "" }
+        );
+        setFormData((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+        setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+      } catch (err) {
+        setError('Error al obtener datos del servidor');
+        toast.error('Error al obtener datos del servidor');
+        console.error(err);
+      }
     };
-    fetchCiclos();
+    fetchData();
   }, []);
 
     // Actualizar día Juliano cuando cambia la fecha
@@ -224,7 +229,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         posicion: isValid ? posicion : "",
       }));
       if (!isValid && formData.bahia && formData.seccion && formData.fondo && formData.piso) {
-        alert("La posición seleccionada no es válida o no está disponible (no está vacía).");
+        toast.error("La posición seleccionada no es válida o no está disponible (no está vacía).");
       }
     } else {
       setFormData((prev) => ({ ...prev, posicion: "" }));
@@ -333,18 +338,19 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       idProducto +
       numeroEtiqueta
     );
-    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${ciclos.find(c => c.id === formData.cicloid)?.ciclo || ''}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
+    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     return { barcode, qrContent };
   });
 
   const handlePrint = () => {
     if (formData.numeroCartones <= 0) {
-      alert("Por favor, ingrese un número válido de etiquetas/cartones.");
+      toast.error("Por favor, ingrese un número válido de etiquetas/cartones.");
       return;
     }
     
     if (!formData.fechaEmpaque || !formData.cicloid || !formData.bodega || !formData.posicion) {
-      alert("Por favor, seleccione una fecha de empaque, un ciclo, una bodega y una posición válida.");
+      toast.error("Por favor, seleccione una fecha de empaque, un ciclo, una bodega y una posición válida.");
       return;
     }
 
@@ -359,11 +365,12 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     });
 
     if (fechaFormateada === "Invalid Date") {
-      alert("La fecha de empaque no es válida.");
+      toast.error("La fecha de empaque no es válida.");
       return;
     }
 
-    //console.log("Calculating Julian Day for fechaFormateada:", fechaFormateada);
+    const ciclo = ciclos.find((c) => c.id === formData.cicloid);
+    const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
     // Crear el array de JSON con los datos de las etiquetas
     const jsonEtiquetas = codigos.map((codigo) => {
@@ -377,7 +384,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         Granja: granjas.find(g => g.id === formData.granja)?.nombre || '',
         TipoCamarón: formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA",
         Talla: tallas.find(t => t.id === formData.talla)?.rango || '',
-        Lote: `${formData.lote}-${ciclos.find(c => c.id === formData.cicloid)?.ciclo || ''}`,
+        Lote: `${formData.lote}-${cicloDisplay}`,
         Empaque: fechaFormateada,
         C_Antes_De: fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }),
         Peso: `${formData.presentacionKgs} kgs`,
@@ -412,13 +419,13 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       posicion: formData.posicion,
     };
     setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
-    alert(`Se imprimirán ${formData.numeroCartones} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`);
+    toast.success(`Se imprimirán ${formData.numeroCartones} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`);
   };
 
   const handleDelete = () => {
     const { lote, cicloid, talla, producto, cantidadEliminar, motivo } = deleteForm;
     if (!lote || !cicloid || !talla || !producto || cantidadEliminar <= 0 || !motivo) {
-      alert("Por favor, complete todos los campos del formulario de eliminación.");
+      toast.error("Por favor, complete todos los campos del formulario de eliminación.");
       return;
     }
 
@@ -437,7 +444,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
 
     if (totalAvailableCartons < cantidadEliminar) {
-      alert(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
+      toast.error(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
       return;
     }
 
@@ -460,7 +467,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       .sort((a, b) => b.folio - a.folio);
     // Verificar que haya suficientes códigos de barras para eliminar
     if (matchingBarcodes.length < cantidadEliminar) {
-      alert(`No hay suficientes códigos de barras para eliminar. Disponibles: ${matchingBarcodes.length}`);
+      toast.error(`No hay suficientes códigos de barras para eliminar. Disponibles: ${matchingBarcodes.length}`);
       return;
     }
 
@@ -491,7 +498,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
     // Verificar si se eliminaron todos los cartones necesarios
     if (remainingToDelete > 0) {
-      alert(`Error: No se pudieron eliminar todos los cartones solicitados. Faltan ${remainingToDelete} cartones.`);
+      toast.error(`Error: No se pudieron eliminar todos los cartones solicitados. Faltan ${remainingToDelete} cartones.`);
       return;
     }
 
@@ -501,17 +508,20 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     setEliminados((prev) => [...prev, ...deletedBarcodes]);
     setShowDeleteModal(false);
     setDeleteForm({ lote: "", cicloid: ciclos[ciclos.length - 1]?.id || 0, talla: "", producto: "", cantidadEliminar: 0, motivo: "" });
-    alert(`Se eliminaron ${cantidadEliminar} etiquetas. Motivo: ${motivo}`);
+    toast.success(`Se eliminaron ${cantidadEliminar} etiquetas. Motivo: ${motivo}`);
   };
 
   // Agregar cartones por fecha, sLote, cicloid, talla, producto y posición
   const totalPorLoteTallaProductoPosicion = detalleEtiquetas.reduce((acc, detalle) => {
+    const ciclo = ciclos.find((c) => c.id === detalle.cicloid);
+    const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
     const key = `${detalle.fecha}-${detalle.sLote}-${detalle.cicloid}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
     if (!acc[key]) {
       acc[key] = {
         fecha: detalle.fecha,
         lote: detalle.sLote,
         cicloid: detalle.cicloid,
+        cicloDisplay: cicloDisplay,
         talla: detalle.talla,
         producto: detalle.producto,
         posicion: detalle.posicion,
@@ -521,7 +531,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     }
     acc[key].cartones += detalle.cartones;
     return acc;
-  }, {} as Record<string, { fecha: string; lote: string; cicloid: number; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
+  }, {} as Record<string, { fecha: string; lote: string; cicloid: number; cicloDisplay: string; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
 
   const registros = Object.values(totalPorLoteTallaProductoPosicion);
   const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
@@ -547,11 +557,13 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const mostrarCamarones = true;
     const leyendaAlergias = "Este producto puede causar alergias en personas suceptibles.";
     const leyendaAlimentaria = "El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.";
+    const ciclo = ciclos.find(c => c.id === formData.cicloid);
+    const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
     return (
       <div ref={ref} style={{ width: "300px", padding: "20px", border: "1px solid #000", fontSize: "12px" }}>
         <div><strong>Planta:</strong> {formData.nombrePlanta}</div>
-        <div><strong>Ciclo:</strong> {ciclos.find(c => c.id === formData.cicloid)?.ciclo || ''}</div>
+        <div><strong>Ciclo:</strong> {cicloDisplay}</div>
         <div><strong>Bodega:</strong> {bodegas.find(b => b.id === formData.bodega)?.nombre || ''}</div>
         <div><strong>Posición:</strong> {formData.posicion}</div>
         <div><strong>Talla:</strong> {tallas.find(t => t.id === formData.talla)?.rango || ''}</div>
@@ -561,7 +573,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         <div><strong>Empaque:</strong> {fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
         <div><strong>C. Antes De:</strong> {fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
         <div><strong>No Lote:</strong> {formData.lote}</div>
-        <div><strong>Lote:</strong> {`Lote ${formData.lote}-${ciclos.find(c => c.id === formData.cicloid)?.ciclo || ''}`}</div>
+        <div><strong>Lote:</strong> {`Lote ${formData.lote}-${cicloDisplay}`}</div>
         <div><strong>Hora:</strong> {formData.horaEmpaque}</div>
         {mostrarCamarones && <div><strong>Camarones:</strong> {formData.camarones}</div>}
         <div><strong>Uniformidad:</strong> {parseFloat(formData.uniformidad).toFixed(2)}</div>
@@ -581,6 +593,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
   return (
     <div className="flex-1 bg-gray-100 min-h-screen overflow-y-auto p-4">
+      {error && <div className="bg-red-100 text-red-700 p-2 rounded mb-4">{error}</div>}
       <div className="flex items-center gap-2 bg-gray-200 px-4 py-2 border-b">
         <button className="px-3 py-2 bg-white border rounded flex items-center gap-1 text-sm">
           <Plus size={16} /> Nuevo
@@ -622,7 +635,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 >
                   <option value={0}>Seleccionar</option>
                   {ciclos.map((ciclo) => (
-                    <option key={ciclo.id} value={ciclo.id}>{ciclo.ciclo}</option>
+                    <option key={ciclo.id} value={ciclo.id}>{`${ciclo.año}-${ciclo.ciclo}`}</option>
                   ))}
                 </select>
               </div>
@@ -713,7 +726,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 >
                   <option value={0}>Seleccionar</option>
                   {ciclos.map((ciclo) => (
-                    <option key={ciclo.id} value={ciclo.id}>{ciclo.ciclo}</option>
+                    <option key={ciclo.id} value={ciclo.id}>{`${ciclo.año}-${ciclo.ciclo}`}</option>
                   ))}
                 </select>
               </div>
@@ -952,19 +965,22 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
           {/*<div className="bg-white p-4 rounded shadow border max-h-[400px] overflow-y-auto mt-4">
             <h2 className="text-lg font-semibold">Vista Previa</h2>
             <div className="space-y-6">
-              {codigos.map((codigo, idx) => (
+              {codigos.map((codigo, idx) => {
+                const ciclo = ciclos.find(c => c.id === formData.cicloid);
+                const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
+                return (
                 <div
                   key={idx}
                   style={{ width: "300px", padding: "20px", border: "1px solid #000", fontSize: "12px" }}
                 >
                   <div><strong>{formData.nombrePlanta}</strong></div>
-                  <div><strong>{ciclos.find(c => c.id === formData.cicloid)?.ciclo || ''}</strong></div>
+                  <div><strong>{cicloDisplay}</strong></div>
                   <div><strong>{bodegas.find(b => b.id === formData.bodega)?.nombre || ''}</strong></div>
                   <div><strong>{formData.posicion}</strong></div>
                   <div><strong>{tallas.find(t => t.id === formData.talla)?.rango || ''}</strong></div>
                   <div><strong>{formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</strong></div>
                   <div><strong>{granjas.find(g => g.id === formData.granja)?.nombre || ''}</strong></div>
-                  <div><strong>L {`${formData.lote}-${ciclos.find(c => c.id === formData.cicloid)?.ciclo || ''}`}</strong></div>
+                  <div><strong>L {`${formData.lote}-${cicloDisplay}`}</strong></div>
                   <div><strong>Empaque:</strong> {new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
                   <div>
                     <strong>C. Antes De:</strong> {new Date(new Date(formData.fechaEmpaque).setFullYear(new Date(formData.fechaEmpaque).getFullYear() + 2)).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
@@ -1019,7 +1035,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
           <div className="bg-white rounded shadow border">
             <div className="bg-blue-100 p-2 font-bold text-sm text-gray-700">Registro:</div>
             <div className="divide-y text-sm">
-              <div className="grid grid-cols-7 text-center p-2 font-bold">
+              <div className="grid grid-cols-8 text-center p-2 font-bold">
                 <span>Fecha</span>
                 <span>Lote</span>
                 <span>Ciclo</span>
@@ -1027,19 +1043,22 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <span>Cartones</span>
                 <span>(Kgs)</span>
                 <span>Producto</span>
+                <span>Posición</span>
               </div>
               {registros.map((registro, idx) => (
-                <div key={idx} className="grid grid-cols-7 text-center p-2">
+                <div key={idx} className="grid grid-cols-8 text-center p-2">
                   <span>{registro.fecha}</span>
                   <span>{registro.lote}</span>
-                  <span>{ciclos.find(c => c.id === registro.cicloid)?.ciclo || ''}</span>
+                  <span>{registro.cicloDisplay}</span>
                   <span>{registro.talla}</span>
                   <span>{registro.cartones}</span>
                   <span>{registro.kgs}</span>
                   <span>{registro.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
+                  <span>{registro.posicion}</span>
                 </div>
               ))}
-              <div className="grid grid-cols-7 text-center p-2 font-bold">
+              <div className="grid grid-cols-8 text-center p-2 font-bold">
+                <span></span>
                 <span></span>
                 <span></span>
                 <span></span>
