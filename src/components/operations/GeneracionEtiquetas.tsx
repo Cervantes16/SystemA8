@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Printer, RefreshCw, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
 import Barcode from "react-barcode";
@@ -9,15 +9,18 @@ import { useAuth } from '../../context/AuthContext';
 
 // Define interfaces for TypeScript
 interface Ciclo {
-  id: number;
+  cicloid: number;
   año: string; // e.g., '2025'
   ciclo: string; // e.g., '1'
   status: string; // e.g., 'A'
 }
 
 interface Bodega {
-  id: number;
-  nombre: string; // e.g., 'Bodega Central'
+  bodegaid: number;
+  bodega: string; // e.g., 'Casa blanca s'
+  lugar: string; // e.g., 'Casa blanca'
+  foranea: string; // e.g., 'N'
+  estatus: string; // e.g., 'A'
 }
 
 interface Ubicacion {
@@ -162,6 +165,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
   });
 
   const { token } = useAuth();
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -169,29 +173,40 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         const ciclosResponse = await axios.get('http://localhost:3000/api/ciclos', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const activeCiclos = ciclosResponse.data.filter((c: Ciclo) => c.status === 'A');
+        const activeCiclos = ciclosResponse.data
+          .filter((c: Ciclo) => c.status === 'A')
+          .map((c: Ciclo) => ({
+            ...c,
+            id: Number(c.id), // Asegurar que id sea number
+          }));
+        console.log("Ciclos obtenidos:", activeCiclos); // Depuración
         setCiclos(activeCiclos);
 
         // Fetch bodegas
         const bodegasResponse = await axios.get('http://localhost:3000/api/bodegas', {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log("Bodegas obtenidas:", bodegasResponse.data); // Depuración
         setBodegas(bodegasResponse.data);
 
         // Fetch ubicaciones (only estado = 'vacío')
         const ubicacionesResponse = await axios.get('http://localhost:3000/api/ubicaciones', {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log("Ubicaciones obtenidas:", ubicacionesResponse.data); // Depuración
         setUbicaciones(ubicacionesResponse.data);
 
         // Set default to latest cycle
-        const latestCiclo = activeCiclos.reduce(
-          (latest: Ciclo, ciclo: Ciclo) => 
-            ciclo.id > latest.id ? ciclo : latest, 
-          activeCiclos[0] || { id: 0, año: "", ciclo: "", status: "" }
-        );
-        setFormData((prev) => ({ ...prev, cicloid: latestCiclo.id }));
-        setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+        if (activeCiclos.length > 0 && formData.cicloid === 0) {
+          const latestCiclo = activeCiclos.reduce(
+            (latest: Ciclo, ciclo: Ciclo) => 
+              ciclo.id > latest.id ? ciclo : latest, 
+              activeCiclos[0]
+          );
+          console.log("Ciclo inicial seleccionado:", latestCiclo);
+          setFormData((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+          setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+        }
       } catch (err) {
         setError('Error al obtener datos del servidor');
         toast.error('Error al obtener datos del servidor');
@@ -199,7 +214,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       }
     };
     fetchData();
-  }, []);
+  }, [token]);
 
     // Actualizar día Juliano cuando cambia la fecha
   useEffect(() => {
@@ -234,7 +249,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     } else {
       setFormData((prev) => ({ ...prev, posicion: "" }));
     }
-  }, [formData.bodega, formData.bahia, formData.seccion, formData.fondo, formData.piso]);
+  }, [formData.bodega, formData.bahia, formData.seccion, formData.fondo, formData.piso, ubicaciones]);
 
   // Obtener opciones válidas para bahia, seccion, fondo y piso según bodega
   const getBodegaOptions = () => {
@@ -243,7 +258,8 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     }
     const configs = ubicaciones.filter((u) => u.bodegaid === formData.bodega && u.estado === "vacío");
     const bahias = Array.from(new Set(configs.map((c) => c.bahia))).sort();
-    const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
+    //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
+    const secciones = Array.from(new Set(configs.map(c => c.seccion))).sort((a, b) => a - b);
     const fondos = Array.from(new Set(configs.map((c) => c.fondo))).sort();
     const pisos = Array.from(new Set(configs.map((c) => c.piso))).sort();
     return { bahias, secciones, fondos, pisos };
@@ -253,6 +269,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
   // Manejar cambios en inputs y sincronizar Kgs ↔ Lbs
   const handleInputChange = (field: keyof FormData, value: string | boolean | number) => {
+    console.log(`Cambiando ${field} a:`, value); // Depuración
     setFormData((prev) => {
       let updated = { ...prev, [field]: value };
       if (field === "presentacionKgs") {
@@ -274,14 +291,36 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         updated.piso = "";
         updated.posicion = "";
       }
+      if (field === "cicloid") {
+        const newValue = Number(value);
+        if (isNaN(newValue)) {
+          console.warn("Valor de cicloid no válido:", value);
+          return prev; // No actualizar si el valor no es válido
+        }
+        updated.cicloid = newValue;
+      }
+      console.log("Nuevo estado formData:", updated); // Depuración
       return updated;
     });
   };
 
   // Manejar cambios en el formulario de eliminación
   const handleDeleteFormChange = (field: keyof DeleteForm, value: string | number) => {
-    setDeleteForm((prev) => ({ ...prev, [field]: value }));
-  };
+    console.log(`Cambiando deleteForm.${field} a:`, value); // Depuración
+    setDeleteForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      if (field === "cicloid") {
+        const newValue = Number(value);
+        if (isNaN(newValue)) {
+          console.warn("Valor de cicloid no válido en deleteForm:", value);
+          return prev;
+        }
+        updated.cicloid = newValue;
+      }
+      console.log("Nuevo estado deleteForm:", updated); // Depuración
+      return updated;
+    });
+ };
 
   // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
   const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string, cicloid: number): number => {
@@ -340,6 +379,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     );
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
     const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     return { barcode, qrContent };
   });
 
@@ -392,7 +432,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         Camarones: parseFloat(formData.camarones) > 0 ? formData.camarones : null,
         Uniformidad: parseFloat(formData.uniformidad).toFixed(2),
         Metabisulfito: formData.metabisulfato ? "SÍ" : "NO",
-        Bodega: bodegas.find(b => b.id === formData.bodega)?.nombre || '',
+        Bodega: bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || '',
         Posicion: formData.posicion,
         Barras: codigo.barcode,
         LeyendaAlergias: leyendaAlergias,
@@ -564,7 +604,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       <div ref={ref} style={{ width: "300px", padding: "20px", border: "1px solid #000", fontSize: "12px" }}>
         <div><strong>Planta:</strong> {formData.nombrePlanta}</div>
         <div><strong>Ciclo:</strong> {cicloDisplay}</div>
-        <div><strong>Bodega:</strong> {bodegas.find(b => b.id === formData.bodega)?.nombre || ''}</div>
+        <div><strong>Bodega:</strong> {bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}</div>
         <div><strong>Posición:</strong> {formData.posicion}</div>
         <div><strong>Talla:</strong> {tallas.find(t => t.id === formData.talla)?.rango || ''}</div>
         <div><strong>Tipo Camarón:</strong> {formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</div>
@@ -630,7 +670,11 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <label>Ciclo</label>
                 <select
                   value={deleteForm.cicloid}
-                  onChange={(e) => handleDeleteFormChange("cicloid", parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    console.log("Ciclo seleccionado en deleteForm:", value); // Depuración
+                    handleDeleteFormChange("cicloid", value);
+                  }}
                   className="w-full border px-2 py-1 rounded"
                 >
                   <option value={0}>Seleccionar</option>
@@ -721,12 +765,16 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <label>Ciclo</label>
                 <select
                   value={formData.cicloid}
-                  onChange={(e) => handleInputChange("cicloid", parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    console.log("Ciclo seleccionado:", value); // Depuración
+                    handleInputChange("cicloid", value);
+                  }}
                   className="w-full border px-2 py-1 rounded"
                 >
                   <option value={0}>Seleccionar</option>
                   {ciclos.map((ciclo) => (
-                    <option key={ciclo.id} value={ciclo.id}>{`${ciclo.año}-${ciclo.ciclo}`}</option>
+                    <option key={ciclo.cicloid} value={ciclo.cicloid}>{`${ciclo.año}-${ciclo.ciclo}`}</option>
                   ))}
                 </select>
               </div>
@@ -867,7 +915,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 >
                   <option value={0}>Seleccionar</option>
                   {bodegas.map((b) => (
-                    <option key={b.id} value={b.id}>{b.nombre}</option>
+                    <option key={b.bodegaid} value={b.bodegaid}>{b.bodega}</option>
                   ))}
                 </select>
               </div>
