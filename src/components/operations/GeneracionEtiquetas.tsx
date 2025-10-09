@@ -37,6 +37,25 @@ interface Ubicacion {
   ultimamod: string;
 }
 
+interface Recepcion {
+  recepcionid: number;
+  foliofisico: string;
+  lote: number;
+  fecha: string;
+  granjaid: number;
+  taras: string;
+  totalkilogramos: string;
+  carroid: number;
+  choferid: number;
+  observacion: string;
+  propietarioid: number;
+  cicloid: number;
+  procesada: string;
+  maquila: string;
+  subida: string;
+  status: string;
+}
+
 interface FormData {
   fechaEmpaque: string;
   diaJuliano: string;
@@ -87,8 +106,8 @@ interface DeleteForm {
 
 // Opciones
 const granjas = [
-  { id: 1, nombre: "AGUILAS" },
-  { id: 2, nombre: "SAN PEDRO" },
+  { granjaid: 1, nombre: "AGUILAS" },
+  { granjaid: 2, nombre: "SAN PEDRO" },
 ];
 
 const tallas = [
@@ -101,6 +120,8 @@ const GeneracionEtiquetas: React.FC = () => {
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
+  const [recepciones, setRecepciones] = useState<Recepcion[]>([]);
+  const [availableGranjas, setAvailableGranjas] = useState(granjas); // Granjas filtradas
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     fechaEmpaque: "2025-09-27",
@@ -174,10 +195,10 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
           headers: { Authorization: `Bearer ${token}` },
         });
         const activeCiclos = ciclosResponse.data
-          .filter((c: Ciclo) => c.status === 'A')
+          .filter((c: Ciclo) => c.status === 'A' && c.cicloid != null && !isNaN(Number(c.cicloid)))
           .map((c: Ciclo) => ({
             ...c,
-            id: Number(c.id), // Asegurar que id sea number
+            id: Number(c.cicloid), // Asegurar que id sea number
           }));
         console.log("Ciclos obtenidos:", activeCiclos); // Depuración
         setCiclos(activeCiclos);
@@ -200,12 +221,15 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         if (activeCiclos.length > 0 && formData.cicloid === 0) {
           const latestCiclo = activeCiclos.reduce(
             (latest: Ciclo, ciclo: Ciclo) => 
-              ciclo.id > latest.id ? ciclo : latest, 
+              ciclo.cicloid > latest.cicloid ? ciclo : latest, 
               activeCiclos[0]
           );
           console.log("Ciclo inicial seleccionado:", latestCiclo);
-          setFormData((prev) => ({ ...prev, cicloid: latestCiclo.id }));
-          setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.id }));
+          setFormData((prev) => ({ ...prev, cicloid: latestCiclo.cicloid }));
+          setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.cicloid }));
+        } else if (activeCiclos.length === 0) {
+          console.warn("No se encontraron ciclos válidos");
+          setError("No hay ciclos disponibles. Por favor, verifica el servidor.");
         }
       } catch (err) {
         setError('Error al obtener datos del servidor');
@@ -215,6 +239,52 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     };
     fetchData();
   }, [token]);
+
+  // Fetch recepciones cuando cambian cicloid y lote
+  useEffect(() => {
+    const fetchRecepciones = async () => {
+      if (formData.cicloid !== 0 && formData.lote !== "") {
+        try {
+          const reciboResponse = await axios.get(
+            `http://localhost:3000/api/recepcion/g/${formData.cicloid}/${formData.lote}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          console.log("Recepciones obtenidas:", reciboResponse.data);
+          const validRecepciones = reciboResponse.data.filter(
+            (r: Recepcion) => r.status === 'A' && r.granjaid != null && !isNaN(Number(r.granjaid))
+          );
+          setRecepciones(validRecepciones);
+
+          // Filtrar granjas según granjaid de las recepciones
+          const granjaIds = Array.from(new Set(validRecepciones.map((r: Recepcion) => Number(r.granjaid))));
+          const filteredGranjas = granjas.filter((g) => granjaIds.includes(g.granjaid));
+          console.log("Granjas disponibles filtradas:", filteredGranjas);
+          setAvailableGranjas(filteredGranjas.length > 0 ? filteredGranjas : granjas); // Fallback a todas las granjas si no hay recepciones
+
+          // Actualizar formData.granja si no es válida
+          if (filteredGranjas.length > 0 && !filteredGranjas.some((g) => g.granjaid === formData.granja)) {
+            setFormData((prev) => ({ ...prev, granja: filteredGranjas[0].granjaid }));
+          } else if (filteredGranjas.length === 0) {
+            toast.warn("No hay granjas disponibles para el ciclo y lote seleccionados.");
+            setFormData((prev) => ({ ...prev, granja: 0 }));
+          }
+        } catch (err) {
+          console.error("Error al obtener recepciones:", err);
+          setError("Error al obtener recepciones. Mostrando todas las granjas.");
+          setAvailableGranjas(granjas); // Fallback a todas las granjas
+          setFormData((prev) => ({ ...prev, granja: 0 }));
+          toast.error("Error al obtener recepciones del servidor.");
+        }
+      } else {
+        // Si no hay ciclo o lote, usar todas las granjas
+        setAvailableGranjas(granjas);
+        setRecepciones([]);
+      }
+    };
+    fetchRecepciones();
+  }, [formData.cicloid, formData.lote, token]);
 
     // Actualizar día Juliano cuando cambia la fecha
   useEffect(() => {
@@ -259,7 +329,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const configs = ubicaciones.filter((u) => u.bodegaid === formData.bodega && u.estado === "vacío");
     const bahias = Array.from(new Set(configs.map((c) => c.bahia))).sort();
     //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
-    const secciones = Array.from(new Set(configs.map(c => c.seccion))).sort((a, b) => a - b);
+    const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
     const fondos = Array.from(new Set(configs.map((c) => c.fondo))).sort();
     const pisos = Array.from(new Set(configs.map((c) => c.piso))).sort();
     return { bahias, secciones, fondos, pisos };
@@ -293,11 +363,16 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       }
       if (field === "cicloid") {
         const newValue = Number(value);
-        if (isNaN(newValue)) {
+        if (isNaN(newValue) || newValue === 0) {
           console.warn("Valor de cicloid no válido:", value);
+          toast.error("Por favor, seleccione un ciclo válido.");
           return prev; // No actualizar si el valor no es válido
         }
         updated.cicloid = newValue;
+        updated.granja = 0; // Resetear granja al cambiar ciclo
+      }
+      if (field === "lote") {
+        updated.granja = 0; // Resetear granja al cambiar lote
       }
       console.log("Nuevo estado formData:", updated); // Depuración
       return updated;
@@ -313,6 +388,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         const newValue = Number(value);
         if (isNaN(newValue)) {
           console.warn("Valor de cicloid no válido en deleteForm:", value);
+          toast.error("Por favor, seleccione un ciclo válido.");
           return prev;
         }
         updated.cicloid = newValue;
@@ -339,7 +415,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const idTalla = String(tallaId).padStart(2, "0");
     const kilosFormateados = String(parseInt(String(kgs), 10)).padStart(3, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
-    const ciclo = ciclos.find((c) => c.id === cicloid);
+    const ciclo = ciclos.find((c) => c.cicloid === cicloid);
     const año = ciclo ? ciclo.año : "2025"; // Fallback to current year
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${diaJuliano}${año}${kilosFormateados}${idProducto}`;
     const matchingBarcodes = impresos
@@ -365,7 +441,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
     const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
-    const ciclo = ciclos.find((c) => c.id === formData.cicloid);
+    const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
     const año = ciclo ? ciclo.año : "2025"; // Fallback to current year
     const barcode = (
       formData.lote.padStart(4, "0") +
@@ -378,8 +454,8 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       numeroEtiqueta
     );
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
-    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.id === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     return { barcode, qrContent };
   });
 
@@ -389,8 +465,8 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       return;
     }
     
-    if (!formData.fechaEmpaque || !formData.cicloid || !formData.bodega || !formData.posicion) {
-      toast.error("Por favor, seleccione una fecha de empaque, un ciclo, una bodega y una posición válida.");
+    if (!formData.fechaEmpaque || !formData.cicloid || !formData.granja || !formData.bodega || !formData.posicion) {
+      toast.error("Por favor, complete todos los campos requeridos: fecha, ciclo, granja, bodega y posición.");
       return;
     }
 
@@ -409,7 +485,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       return;
     }
 
-    const ciclo = ciclos.find((c) => c.id === formData.cicloid);
+    const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
     // Crear el array de JSON con los datos de las etiquetas
@@ -421,7 +497,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
       return {
         Planta: formData.nombrePlanta,
-        Granja: granjas.find(g => g.id === formData.granja)?.nombre || '',
+        Granja: granjas.find(g => g.granjaid === formData.granja)?.nombre || '',
         TipoCamarón: formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA",
         Talla: tallas.find(t => t.id === formData.talla)?.rango || '',
         Lote: `${formData.lote}-${cicloDisplay}`,
@@ -497,7 +573,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";    
-    const ciclo = ciclos.find((c) => c.id === cicloid);
+    const ciclo = ciclos.find((c) => c.cicloid === cicloid);
     const año = ciclo ? ciclo.año : "2025"; // Fallback to current year
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${año}${kilosFormateados}${idProducto}`;
 
@@ -553,7 +629,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
   // Agregar cartones por fecha, sLote, cicloid, talla, producto y posición
   const totalPorLoteTallaProductoPosicion = detalleEtiquetas.reduce((acc, detalle) => {
-    const ciclo = ciclos.find((c) => c.id === detalle.cicloid);
+    const ciclo = ciclos.find((c) => c.cicloid === detalle.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
     const key = `${detalle.fecha}-${detalle.sLote}-${detalle.cicloid}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
     if (!acc[key]) {
@@ -597,7 +673,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const mostrarCamarones = true;
     const leyendaAlergias = "Este producto puede causar alergias en personas suceptibles.";
     const leyendaAlimentaria = "El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.";
-    const ciclo = ciclos.find(c => c.id === formData.cicloid);
+    const ciclo = ciclos.find(c => c.cicloid === formData.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
     return (
@@ -608,7 +684,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         <div><strong>Posición:</strong> {formData.posicion}</div>
         <div><strong>Talla:</strong> {tallas.find(t => t.id === formData.talla)?.rango || ''}</div>
         <div><strong>Tipo Camarón:</strong> {formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</div>
-        <div><strong>Granja:</strong> {granjas.find(g => g.id === formData.granja)?.nombre || ''}</div>
+        <div><strong>Granja:</strong> {granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}</div>
         <div><strong>Peso:</strong> {formData.presentacionKgs} kg</div>
         <div><strong>Empaque:</strong> {fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
         <div><strong>C. Antes De:</strong> {fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
@@ -671,15 +747,16 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <select
                   value={deleteForm.cicloid}
                   onChange={(e) => {
+                    console.log("Valor crudo de ciclo seleccionado en deleteForm:", e.target.value);
                     const value = Number(e.target.value);
-                    console.log("Ciclo seleccionado en deleteForm:", value); // Depuración
+                    console.log("Ciclo seleccionado en deleteForm:", value);
                     handleDeleteFormChange("cicloid", value);
                   }}
                   className="w-full border px-2 py-1 rounded"
                 >
                   <option value={0}>Seleccionar</option>
                   {ciclos.map((ciclo) => (
-                    <option key={ciclo.id} value={ciclo.id}>{`${ciclo.año}-${ciclo.ciclo}`}</option>
+                    <option key={ciclo.cicloid} value={ciclo.cicloid}>{`${ciclo.año}-${ciclo.ciclo}`}</option>
                   ))}
                 </select>
               </div>
@@ -766,8 +843,9 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <select
                   value={formData.cicloid}
                   onChange={(e) => {
+                    console.log("Valor crudo de ciclo seleccionado:", e.target.value);
                     const value = Number(e.target.value);
-                    console.log("Ciclo seleccionado:", value); // Depuración
+                    console.log("Ciclo seleccionado:", value);
                     handleInputChange("cicloid", value);
                   }}
                   className="w-full border px-2 py-1 rounded"
@@ -813,10 +891,11 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                   value={formData.granja}
                   onChange={(e) => handleInputChange("granja", parseInt(e.target.value))}
                   className="w-full border px-2 py-1 rounded"
+                  disabled={availableGranjas.length === 0}
                 >
                   <option value={0}>Seleccionar</option>
-                  {granjas.map((g) => (
-                    <option key={g.id} value={g.id}>{g.nombre}</option>
+                  {availableGranjas.map((g) => (
+                    <option key={g.granjaid} value={g.granjaid}>{g.nombre}</option>
                   ))}
                 </select>
               </div>
@@ -1014,7 +1093,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
             <h2 className="text-lg font-semibold">Vista Previa</h2>
             <div className="space-y-6">
               {codigos.map((codigo, idx) => {
-                const ciclo = ciclos.find(c => c.id === formData.cicloid);
+                const ciclo = ciclos.find(c => c.cicloid === formData.cicloid);
                 const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
                 return (
                 <div
@@ -1027,7 +1106,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                   <div><strong>{formData.posicion}</strong></div>
                   <div><strong>{tallas.find(t => t.id === formData.talla)?.rango || ''}</strong></div>
                   <div><strong>{formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</strong></div>
-                  <div><strong>{granjas.find(g => g.id === formData.granja)?.nombre || ''}</strong></div>
+                  <div><strong>{granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}</strong></div>
                   <div><strong>L {`${formData.lote}-${cicloDisplay}`}</strong></div>
                   <div><strong>Empaque:</strong> {new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
                   <div>
