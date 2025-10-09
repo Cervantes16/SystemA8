@@ -111,9 +111,9 @@ const granjas = [
 ];
 
 const tallas = [
-  { id: 1, rango: "41-50" },
-  { id: 2, rango: "51-60" },
-  { id: 3, rango: "61-70" },
+  { id: 1, talla: "41-50" },
+  { id: 2, talla: "51-60" },
+  { id: 3, talla: "61-70" },
 ];
 
 const GeneracionEtiquetas: React.FC = () => {
@@ -400,7 +400,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
   // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
   const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string, cicloid: number): number => {
-    const tallaRango = tallas.find((t) => t.id === tallaId)?.rango || "";
+    const tallaRango = tallas.find((t) => t.id === tallaId)?.talla || "";
     const matchingEntries = detalleEtiquetas.filter(
       (detalle) =>
         detalle.sLote === lote &&
@@ -454,8 +454,8 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       numeroEtiqueta
     );
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
-    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.rango || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.id === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     return { barcode, qrContent };
   });
 
@@ -499,7 +499,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         Planta: formData.nombrePlanta,
         Granja: granjas.find(g => g.granjaid === formData.granja)?.nombre || '',
         TipoCamarón: formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA",
-        Talla: tallas.find(t => t.id === formData.talla)?.rango || '',
+        Talla: tallas.find(t => t.id === formData.talla)?.talla || '',
         Lote: `${formData.lote}-${cicloDisplay}`,
         Empaque: fechaFormateada,
         C_Antes_De: fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }),
@@ -528,7 +528,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       diaJuliano: formData.diaJuliano,
       sLote: formData.lote,
       cicloid: formData.cicloid,
-      talla: tallas.find((t) => t.id === formData.talla)?.rango || "",
+      talla: tallas.find((t) => t.id === formData.talla)?.talla || "",
       cartones: formData.numeroCartones,
       kgs: parseFloat(formData.presentacionKgs),
       producto: formData.producto,
@@ -570,7 +570,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
     // Generar prefijo de código de barras para eliminación
     const idGranja = String(formData.granja).padStart(3, "0");
-    const idTalla = tallas.find((t) => t.rango === talla)?.id.toString().padStart(2, "0") || "01";
+    const idTalla = tallas.find((t) => t.talla === talla)?.id.toString().padStart(2, "0") || "01";
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";    
     const ciclo = ciclos.find((c) => c.cicloid === cicloid);
@@ -682,7 +682,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         <div><strong>Ciclo:</strong> {cicloDisplay}</div>
         <div><strong>Bodega:</strong> {bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}</div>
         <div><strong>Posición:</strong> {formData.posicion}</div>
-        <div><strong>Talla:</strong> {tallas.find(t => t.id === formData.talla)?.rango || ''}</div>
+        <div><strong>Talla:</strong> {tallas.find(t => t.id === formData.talla)?.talla || ''}</div>
         <div><strong>Tipo Camarón:</strong> {formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</div>
         <div><strong>Granja:</strong> {granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}</div>
         <div><strong>Peso:</strong> {formData.presentacionKgs} kg</div>
@@ -908,7 +908,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 >
                   <option value={0}>Seleccionar</option>
                   {tallas.map((t) => (
-                    <option key={t.id} value={t.id}>{t.rango}</option>
+                    <option key={t.id} value={t.id}>{t.talla}</option>
                   ))}
                 </select>
               </div>
@@ -1104,7 +1104,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                   <div><strong>{cicloDisplay}</strong></div>
                   <div><strong>{bodegas.find(b => b.id === formData.bodega)?.nombre || ''}</strong></div>
                   <div><strong>{formData.posicion}</strong></div>
-                  <div><strong>{tallas.find(t => t.id === formData.talla)?.rango || ''}</strong></div>
+                  <div><strong>{tallas.find(t => t.id === formData.talla)?.talla || ''}</strong></div>
                   <div><strong>{formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</strong></div>
                   <div><strong>{granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}</strong></div>
                   <div><strong>L {`${formData.lote}-${cicloDisplay}`}</strong></div>
