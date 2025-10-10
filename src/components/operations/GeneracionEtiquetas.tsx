@@ -93,13 +93,15 @@ interface FormData {
   tarima: string;
 }
 
+
 interface DetalleEtiqueta {
   id: number;
   fecha: string;
   diaJuliano: string;
   sLote: string;
-  cicloid: number; // Added for cycle
-  talla: string;
+  cicloid: number;
+  tallaid: number; // Nuevo campo
+  talla: string; // Mantener para visualización, si es necesario
   cartones: number;
   kgs: number;
   producto: string;
@@ -114,18 +116,6 @@ interface DeleteForm {
   cantidadEliminar: number;
   motivo: string;
 }
-
-// Opciones
-const granjas = [
-  { granjaid: 1, nombre: "AGUILAS" },
-  { granjaid: 2, nombre: "SAN PEDRO" },
-];
-
-const tallas = [
-  { tallaid: 1, talla: "41-50" },
-  { tallaid: 2, talla: "51-60" },
-  { tallaid: 3, talla: "61-70" },
-];
 
 const GeneracionEtiquetas: React.FC = () => {
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
@@ -143,7 +133,7 @@ const GeneracionEtiquetas: React.FC = () => {
     cicloid: 0, // Will be set to latest cycle
     granja: 0,
     talla: 0,
-    camarones: "1.00",
+    camarones: "",
     presentacionKgs: "20.000",
     presentacionLbs: "44.092",
     producto: "SIN_CABEZA",
@@ -168,19 +158,19 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
-    "0001001012702025020010001",
-    "0001001012702025020010002",
-    "0001001012702025020010003",
-    "0001001012702025020010004",
-    "0001001012702025020010005",
-    "0001001022702025020010001",
-    "0001001022702025020010002",
-    "0001001022702025020010003",
-    "0001001022702025020010004",
-    "0001001022702025020010005",
-    "0001001022702025020010006",
-    "0001001022702025020010007",
-    "0001001022702025020010008",
+    "0001001092702025020010001",
+    "0001001092702025020010002",
+    "0001001092702025020010003",
+    "0001001092702025020010004",
+    "0001001092702025020010005",
+    "0001001102702025020010001",
+    "0001001102702025020010002",
+    "0001001102702025020010003",
+    "0001001102702025020010004",
+    "0001001102702025020010005",
+    "0001001102702025020010006",
+    "0001001102702025020010007",
+    "0001001102702025020010008",
   ]);
 
   const [eliminados, setEliminados] = useState<string[]>([
@@ -369,7 +359,8 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const configs = ubicaciones.filter((u) => u.bodegaid === formData.bodega && u.estado === "vacío");
     const bahias = Array.from(new Set(configs.map((c) => c.bahia))).sort();
     //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
-    const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
+    //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
+    const secciones = Array.from(new Set(configs.map(c => c.seccion))).sort((a, b) => a - b);
     const fondos = Array.from(new Set(configs.map((c) => c.fondo))).sort();
     const pisos = Array.from(new Set(configs.map((c) => c.piso))).sort();
     return { bahias, secciones, fondos, pisos };
@@ -414,6 +405,17 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       if (field === "lote") {
         updated.granja = 0; // Resetear granja al cambiar lote
       }
+      if (field === "talla") {
+        const selectedTallaId = Number(value);
+        const selectedTalla = tallas.find(t => t.tallaid === selectedTallaId);
+        if (selectedTalla) {
+          const range = selectedTalla.talla.split('-');
+          if (range.length === 2) {
+            const minCamarones = range[0].trim();
+            updated.camarones = minCamarones;
+          }
+        }
+      }
       console.log("Nuevo estado formData:", updated); // Depuración
       return updated;
     });
@@ -440,12 +442,12 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
   // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
   const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string, cicloid: number): number => {
-    const tallaNombre = tallas.find((t) => t.tallaid === tallaId)?.talla || "";
+    //const tallaNombre = tallas.find((t) => t.tallaid === tallaId)?.talla || "";
     const matchingEntries = detalleEtiquetas.filter(
       (detalle) =>
         detalle.sLote === lote &&
         detalle.cicloid === cicloid &&
-        detalle.talla === tallaNombre &&
+        detalle.tallaid === tallaId && 
         detalle.producto === producto &&
         detalle.kgs === kgs &&
         detalle.diaJuliano === diaJuliano
@@ -494,7 +496,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       numeroEtiqueta
     );
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.id === formData.bodega)?.nombre || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.granja || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     return { barcode, qrContent };
   });
@@ -568,6 +570,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       diaJuliano: formData.diaJuliano,
       sLote: formData.lote,
       cicloid: formData.cicloid,
+      tallaid: formData.talla, // Agregar tallaid
       talla: tallas.find((t) => t.tallaid === formData.talla)?.talla || "",
       cartones: formData.numeroCartones,
       kgs: parseFloat(formData.presentacionKgs),
