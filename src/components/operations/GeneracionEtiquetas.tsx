@@ -140,7 +140,7 @@ const GeneracionEtiquetas: React.FC = () => {
     camarones: "",
     presentacionKgs: "20.000",
     presentacionLbs: "44.092",
-    producto: "SIN_CABEZA",
+    producto: "S/CABEZA",
     uniformidad: "0.000",
     metabisulfato: true,
     horaEmpaque: "12:30",
@@ -157,8 +157,8 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   /*const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
-    { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
-    { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+    { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, talla: "41-50", cartones: 5, kgs: 20, producto: "S/CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, talla: "51-60", cartones: 8, kgs: 20, producto: "S/CABEZA", posicion: "1-2B1" },
   ]);*/
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, tallaid: 9, talla: "41-50", cartones: 5, kgs: 20, producto: "S/CABEZA", posicion: "1-1A1" },
@@ -218,7 +218,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = String(tallaId).padStart(2, "0");
     const kilosFormateados = String(parseInt(String(kgs), 10)).padStart(3, "0");
-    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const idProducto = producto === "S/CABEZA" ? "01" : "02";
     const ciclo = ciclos.find((c) => c.cicloid === cicloid);
     const año = ciclo ? ciclo.año : "2025";
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${diaJuliano}${año}${kilosFormateados}${idProducto}`;
@@ -244,7 +244,7 @@ const GeneracionEtiquetas: React.FC = () => {
     );
     const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
     const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
-    const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
+    const idProducto = formData.producto === "S/CABEZA" ? "01" : "02";
     const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
     const año = ciclo ? ciclo.año : "2025";
     const barcode = (
@@ -266,10 +266,10 @@ const GeneracionEtiquetas: React.FC = () => {
       Camarones: ${formData.camarones}, 
       Pres.: ${formData.presentacionKgs}, 
       DiaJuliano: ${formData.diaJuliano}, 
-      Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, 
+      Producto: ${formData.producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA"}, 
       Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, 
       Barras: ${barcode}`;
-    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
     return { barcode, qrContent };
   }) : [];
 
@@ -578,9 +578,33 @@ const GeneracionEtiquetas: React.FC = () => {
     const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
-    // Crear la nueva entrada para detalleEtiquetas
+      // Check for existing matching entry in detalleEtiquetas
+  const matchingEntry = detalleEtiquetas.find(
+    (detalle) =>
+      detalle.fecha === fechaFormateada &&
+      detalle.sLote === formData.lote &&
+      detalle.tallaid === formData.talla &&
+      detalle.producto === formData.producto &&
+      detalle.posicion === formData.posicion &&
+      detalle.kgs === parseFloat(formData.presentacionKgs) &&
+      detalle.diaJuliano === formData.diaJuliano
+  );
+
+  // Determine detalleid for the labels
+  const detalleid = matchingEntry ? matchingEntry.id : detalleEtiquetas.length + 1;
+
+  // Update or create detalleEtiquetas entry
+  if (matchingEntry) {
+    setDetalleEtiquetas((prev) =>
+      prev.map((detalle) =>
+        detalle.id === matchingEntry.id
+          ? { ...detalle, cartones: detalle.cartones + formData.numeroCartones }
+          : detalle
+      )
+    );
+  } else {
     const nuevaEntrada: DetalleEtiqueta = {
-      id: detalleEtiquetas.length + 1,
+      id: detalleid,
       fecha: fechaFormateada,
       diaJuliano: formData.diaJuliano,
       sLote: formData.lote,
@@ -593,39 +617,44 @@ const GeneracionEtiquetas: React.FC = () => {
       posicion: formData.posicion,
     };
     console.log("Nueva entrada para detalleEtiquetas:", nuevaEntrada);
+    setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
+  }
+  
 
     // Crear el array de JSON con los datos de las etiquetas
-    const jsonEtiquetas = codigos.map((codigo, index) => {
-      const fechaCaduca = new Date(fechaLocal);
-      fechaCaduca.setFullYear(fechaCaduca.getFullYear() + 2);
-      const leyendaAlergias = "Este producto puede causar alergias en personas suceptibles.";
-      const leyendaAlimentaria = "El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.";
-      const id = detalleEtiquetas.length + 1 + index;
-      return {
-        id,
-        Planta: formData.nombrePlanta,
-        Granja: granjas.find(g => g.granjaid === formData.granja)?.granja || '',
-        TipoCamarón: formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA",
-        Talla: tallas.find(t => t.tallaid === formData.talla)?.talla || '',
-        Lote: `${formData.lote}-${cicloDisplay}`,
-        Empaque: fechaFormateada,
-        DiaJuliano: formData.diaJuliano,
-        LoteId: formData.lote,
-        CicloId: formData.cicloid,
-        C_Antes_De: fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }),
-        Peso: `${formData.presentacionKgs} kgs`,
-        Hora: formData.horaEmpaque,
-        Camarones: parseFloat(formData.camarones) > 0 ? formData.camarones : null,
-        Uniformidad: parseFloat(formData.uniformidad).toFixed(2),
-        Metabisulfito: formData.metabisulfato ? "SÍ" : "NO",
-        Bodega: bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || '',
-        Posicion: formData.posicion,
-        LeyendaAlergias: leyendaAlergias,
-        LeyendaAlimentaria: leyendaAlimentaria,
-        Barras: codigo.barcode,
-        QRContent: codigo.qrContent,
-      };
-    });
+  const jsonEtiquetas = codigos.map((codigo) => {
+    const fechaCaduca = new Date(fechaLocal);
+    fechaCaduca.setFullYear(fechaCaduca.getFullYear() + 2);
+    const folio = codigo.barcode.slice(-4); // Last 4 digits of barcode
+    const leyendaAlergias = "Este producto puede causar alergias en personas suceptibles.";
+    const leyendaAlimentaria = "El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.";
+
+    return {
+      id: folio, // Use folio as id
+      detalleid: String(detalleid),
+      Planta: formData.nombrePlanta,
+      Granja: granjas.find(g => g.granjaid === formData.granja)?.granja || '',
+      TipoCamarón: formData.producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA",
+      Talla: tallas.find(t => t.tallaid === formData.talla)?.talla || '',
+      Lote: `${formData.lote}-${cicloDisplay}`,
+      Empaque: fechaFormateada,
+      DiaJuliano: formData.diaJuliano,
+      LoteId: formData.lote,
+      CicloId: formData.cicloid,
+      C_Antes_De: fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }),
+      Peso: `${formData.presentacionKgs} kgs`,
+      Hora: formData.horaEmpaque,
+      Camarones: parseFloat(formData.camarones) > 0 ? formData.camarones : null,
+      Uniformidad: parseFloat(formData.uniformidad).toFixed(2),
+      Metabisulfito: formData.metabisulfato ? "SÍ" : "NO",
+      Bodega: bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || '',
+      Posicion: formData.posicion,
+      LeyendaAlergias: leyendaAlergias,
+      LeyendaAlimentaria: leyendaAlimentaria,
+      Barras: codigo.barcode,
+      QRContent: codigo.qrContent,
+    };
+  });
 
     // Preparar los datos para enviar al servidor
   const payload = {
@@ -637,7 +666,7 @@ const GeneracionEtiquetas: React.FC = () => {
 
     try {
       // Enviar los datos al servidor
-    console.log("Sending payload to server:", payload);
+    console.log("Sending payload to server:", JSON.stringify(payload, null, 2));
     const response = await axios.post('http://localhost:3000/api/etiquetas', payload, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -714,7 +743,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const idGranja = String(formData.granja).padStart(3, "0");
     const idTalla = String(selectedTalla.tallaid).padStart(2, "0");
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
-    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";    
+    const idProducto = producto === "S/CABEZA" ? "01" : "02";    
     const ciclo = ciclos.find((c) => c.cicloid === cicloid);
     const año = ciclo ? ciclo.año : "2025";
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${año}${kilosFormateados}${idProducto}`;
@@ -830,7 +859,7 @@ const GeneracionEtiquetas: React.FC = () => {
         <div><strong>Bodega:</strong> {bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}</div>
         <div><strong>Posición:</strong> {formData.posicion}</div>
         <div><strong>Talla:</strong> {tallas.find(t => t.tallaid === formData.talla)?.talla || ''}</div>
-        <div><strong>Tipo Camarón:</strong> {formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</div>
+        <div><strong>Tipo Camarón:</strong> {formData.producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA"}</div>
         <div><strong>Granja:</strong> {granjas.find(g => g.granjaid === formData.granja)?.granja || ''}</div>
         <div><strong>Peso:</strong> {formData.presentacionKgs} kg</div>
         <div><strong>Empaque:</strong> {fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
@@ -938,7 +967,7 @@ const GeneracionEtiquetas: React.FC = () => {
                   <option value="">Seleccionar</option>
                   {uniqueProductos.map((producto) => (
                     <option key={producto} value={producto}>
-                      {producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}
+                      {producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA"}
                     </option>
                   ))}
                 </select>
@@ -1098,7 +1127,7 @@ const GeneracionEtiquetas: React.FC = () => {
                   onChange={(e) => handleInputChange("producto", e.target.value)}
                   className="w-full border px-2 py-1 rounded"
                 >
-                  <option value="SIN_CABEZA">S/CABEZA</option>
+                  <option value="S/CABEZA">S/CABEZA</option>
                   <option value="CON_CABEZA">C/CABEZA</option>
                 </select>
               </div>
@@ -1249,7 +1278,7 @@ const GeneracionEtiquetas: React.FC = () => {
                   <span>{registro.talla}</span>
                   <span>{registro.cartones}</span>
                   <span>{registro.kgs}</span>
-                  <span>{registro.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
+                  <span>{registro.producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
                   <span>{registro.posicion}</span>
                 </div>
               ))}
