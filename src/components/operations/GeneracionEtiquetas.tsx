@@ -110,6 +110,7 @@ interface DetalleEtiqueta {
 interface DeleteForm {
   lote: string;
   cicloid: number;
+  granja: string;
   talla: string;
   producto: string;
   cantidadEliminar: number;
@@ -190,6 +191,7 @@ const GeneracionEtiquetas: React.FC = () => {
   const [deleteForm, setDeleteForm] = useState<DeleteForm>({
     lote: "",
     cicloid: 0,
+    granja : "",
     talla: "",
     producto: "",
     cantidadEliminar: 0,
@@ -197,7 +199,7 @@ const GeneracionEtiquetas: React.FC = () => {
   });
 
   const { token } = useAuth();
-
+  console.log('Token en GeneracionEtiquetas:', token);
     // Moved getNextFolio here to ensure it's defined before codigos
   const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string, cicloid: number): number => {
     if (!tallas.find((t) => t.tallaid === tallaId)) {
@@ -705,6 +707,8 @@ const GeneracionEtiquetas: React.FC = () => {
 
   const handleDelete = () => {
     const { lote, cicloid, talla, producto, cantidadEliminar, motivo } = deleteForm;
+    console.log("handleDelete called with deleteForm:", deleteForm); // Debug
+
     if (!lote || !cicloid || !talla || !producto || cantidadEliminar <= 0 || !motivo) {
       toast.error("Por favor, complete todos los campos del formulario de eliminación.");
       return;
@@ -727,8 +731,11 @@ const GeneracionEtiquetas: React.FC = () => {
           detalle.kgs === parseFloat(formData.presentacionKgs) &&
           detalle.diaJuliano === formData.diaJuliano
       )
-      .sort((a, b) => b.id - a.id); // Ordenar por ID descendente
-    const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+    .sort((a, b) => b.id - a.id); // Ordenar por ID descendente
+  console.log("matchingEntries:", matchingEntries); // Debug
+
+  const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+  console.log("totalAvailableCartons:", totalAvailableCartons); // Debug
 
     if (totalAvailableCartons < cantidadEliminar) {
       toast.error(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
@@ -739,19 +746,24 @@ const GeneracionEtiquetas: React.FC = () => {
     const newDetalleEtiquetas = [...detalleEtiquetas];
     const deletedBarcodes: string[] = [];
 
-    // Generar prefijo de código de barras para eliminación
-    const idGranja = String(formData.granja).padStart(3, "0");
-    const idTalla = String(selectedTalla.tallaid).padStart(2, "0");
-    const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
-    const idProducto = producto === "S/CABEZA" ? "01" : "02";    
-    const ciclo = ciclos.find((c) => c.cicloid === cicloid);
-    const año = ciclo ? ciclo.año : "2025";
-    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${año}${kilosFormateados}${idProducto}`;
+  // Generar prefijo de código de barras para eliminación, usando valores de deleteForm
+  const idGranja = String(formData.granja).padStart(3, "0"); // Usa formData.granja; ajusta si necesitas dinámico
+  const idTalla = String(selectedTalla.tallaid).padStart(2, "0");
+  const kilosFormateados = "020"; // Asumir 20 kgs por defecto; ajusta si necesitas dinámico
+  const idProducto = producto === "S/CABEZA" ? "01" : "02";
+  const ciclo = ciclos.find((c) => c.cicloid === cicloid);
+  const año = ciclo ? ciclo.año : "";
+  const diaJulianoParaPrefijo = formData.diaJuliano || ""; // Usa formData o haz dinámico
+  const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${diaJulianoParaPrefijo}${año}${kilosFormateados}${idProducto}`;
 
-    const matchingBarcodes = impresos
-      .filter((barcode) => barcode.startsWith(prefix))
-      .map((barcode) => ({ barcode, folio: parseInt(barcode.slice(-4)) }))
-      .sort((a, b) => b.folio - a.folio);
+  console.log("Prefix for matchingBarcodes:", prefix); // Debug
+
+  const matchingBarcodes = impresos
+    .filter((barcode) => barcode.startsWith(prefix))
+    .map((barcode) => ({ barcode, folio: parseInt(barcode.slice(-4)) }))
+    .sort((a, b) => b.folio - a.folio);
+  console.log("matchingBarcodes:", matchingBarcodes); // Debug
+
     // Verificar que haya suficientes códigos de barras para eliminar
     if (matchingBarcodes.length < cantidadEliminar) {
       toast.error(`No hay suficientes códigos de barras para eliminar. Disponibles: ${matchingBarcodes.length}`);
@@ -763,6 +775,7 @@ const GeneracionEtiquetas: React.FC = () => {
       const { barcode } = matchingBarcodes[i];
       deletedBarcodes.push(barcode);
     }
+    console.log("deletedBarcodes:", deletedBarcodes); // Debug
 
     // Actualizar detalleEtiquetas
     for (let i = 0; i < matchingEntries.length && remainingToDelete > 0; i++) {
