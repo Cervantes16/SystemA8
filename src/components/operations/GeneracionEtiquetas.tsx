@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Printer, RefreshCw, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
 import Barcode from "react-barcode";
@@ -10,17 +10,17 @@ import { useAuth } from '../../context/AuthContext';
 // Define interfaces for TypeScript
 interface Ciclo {
   cicloid: number;
-  año: string; // e.g., '2025'
-  ciclo: string; // e.g., '1'
-  status: string; // e.g., 'A'
+  año: string;
+  ciclo: string;
+  status: string;
 }
 
 interface Bodega {
   bodegaid: number;
-  bodega: string; // e.g., 'Casa blanca s'
-  lugar: string; // e.g., 'Casa blanca'
-  foranea: string; // e.g., 'N'
-  estatus: string; // e.g., 'A'
+  bodega: string;
+  lugar: string;
+  foranea: string;
+  estatus: string;
 }
 
 interface Ubicacion {
@@ -30,10 +30,10 @@ interface Ubicacion {
   seccion: string;
   piso: string;
   fondo: string;
-  codigoubicacion: string; // e.g., '1-1A1'
+  codigoubicacion: string;
   qrubicacion: string;
   tarimaid: number | null;
-  estado: string; // e.g., 'vacío'
+  estado: string;
   ultimamod: string;
 }
 
@@ -58,20 +58,20 @@ interface Recepcion {
 
 interface Granja {
   granjaid: number;
-  granja: string; // e.g., 'DUBAI'
+  granja: string;
   propietarioid: number;
 }
 
 interface Talla {
   tallaid: number;
-  talla: string; // e.g., 'U10'
+  talla: string;
 }
 
 interface FormData {
   fechaEmpaque: string;
   diaJuliano: string;
   lote: string;
-  cicloid: number; // Added for cycle selection
+  cicloid: number;
   granja: number;
   talla: number;
   camarones: string;
@@ -84,7 +84,7 @@ interface FormData {
   nombrePlanta: string;
   zDesigner: string;
   numeroCartones: number;
-  bodega: number; // New: Bodega ID
+  bodega: number;
   bahia: string;
   seccion: string;
   fondo: string;
@@ -93,15 +93,14 @@ interface FormData {
   tarima: string;
 }
 
-
 interface DetalleEtiqueta {
   id: number;
   fecha: string;
   diaJuliano: string;
   sLote: string;
   cicloid: number;
-  tallaid: number; // Nuevo campo
-  talla: string; // Mantener para visualización, si es necesario
+  tallaid: number;
+  talla: string;
   cartones: number;
   kgs: number;
   producto: string;
@@ -110,11 +109,16 @@ interface DetalleEtiqueta {
 
 interface DeleteForm {
   lote: string;
-  cicloid: number; // Added for cycle
+  cicloid: number;
   talla: string;
   producto: string;
   cantidadEliminar: number;
   motivo: string;
+}
+
+interface Etiqueta {
+  barcode: string;
+  qrContent: string;
 }
 
 const GeneracionEtiquetas: React.FC = () => {
@@ -130,7 +134,7 @@ const GeneracionEtiquetas: React.FC = () => {
     fechaEmpaque: "2025-09-27",
     diaJuliano: "270",
     lote: "1",
-    cicloid: 0, // Will be set to latest cycle
+    cicloid: 0,
     granja: 0,
     talla: 0,
     camarones: "",
@@ -143,7 +147,7 @@ const GeneracionEtiquetas: React.FC = () => {
     nombrePlanta: "PLANTA LAS AGUILAS",
     zDesigner: "ZDesigner ZD220-203dpi ZPL",
     numeroCartones: 1,
-    bodega: 0, // Initialize as unselected
+    bodega: 0,
     bahia: "",
     seccion: "",
     fondo: "",
@@ -152,9 +156,13 @@ const GeneracionEtiquetas: React.FC = () => {
     tarima: "",
   });
 
-const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
+  /*const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, talla: "41-50", cartones: 5, kgs: 20, producto: "SIN_CABEZA", posicion: "1-1A1" },
     { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, talla: "51-60", cartones: 8, kgs: 20, producto: "SIN_CABEZA", posicion: "1-2B1" },
+  ]);*/
+  const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
+    { id: 1, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, tallaid: 9, talla: "41-50", cartones: 5, kgs: 20, producto: "S/CABEZA", posicion: "1-1A1" },
+    { id: 2, fecha: "27/09/2025", diaJuliano: "270", sLote: "1", cicloid: 1, tallaid: 10, talla: "51-60", cartones: 8, kgs: 20, producto: "S/CABEZA", posicion: "1-2B1" },
   ]);
 
   const [impresos, setImpresos] = useState<string[]>([
@@ -181,7 +189,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteForm, setDeleteForm] = useState<DeleteForm>({
     lote: "",
-    cicloid: 0, // Will be set to latest cycle
+    cicloid: 0,
     talla: "",
     producto: "",
     cantidadEliminar: 0,
@@ -189,6 +197,81 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
   });
 
   const { token } = useAuth();
+
+    // Moved getNextFolio here to ensure it's defined before codigos
+  const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string, cicloid: number): number => {
+    if (!tallas.find((t) => t.tallaid === tallaId)) {
+      console.error(`TallaID ${tallaId} no encontrada en tallas`);
+      toast.error("Talla seleccionada no válida.");
+      return 1;
+    }
+    const matchingEntries = detalleEtiquetas.filter(
+      (detalle) =>
+        detalle.sLote === lote &&
+        detalle.cicloid === cicloid &&
+        detalle.tallaid === tallaId &&
+        detalle.producto === producto &&
+        detalle.kgs === kgs &&
+        detalle.diaJuliano === diaJuliano
+    );
+    const totalCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+    const idGranja = String(formData.granja).padStart(3, "0");
+    const idTalla = String(tallaId).padStart(2, "0");
+    const kilosFormateados = String(parseInt(String(kgs), 10)).padStart(3, "0");
+    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
+    const ciclo = ciclos.find((c) => c.cicloid === cicloid);
+    const año = ciclo ? ciclo.año : "2025";
+    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${diaJuliano}${año}${kilosFormateados}${idProducto}`;
+    const matchingBarcodes = impresos
+      .filter((barcode) => barcode.startsWith(prefix))
+      .map((barcode) => parseInt(barcode.slice(-4)))
+      .sort((a, b) => b - a);
+    const lastFolio = matchingBarcodes.length > 0 ? matchingBarcodes[0] : 0;
+    return Math.max(totalCartones, lastFolio) + 1;
+  };
+
+  // Genera lista de códigos de barras para previsualizar
+  const codigos = formData.talla > 0 && tallas.length > 0 ? Array.from({ length: formData.numeroCartones }, (_, i) => {
+    const idGranja = String(formData.granja).padStart(3, "0");
+    const idTalla = String(formData.talla).padStart(2, "0");
+    const startFolio = getNextFolio(
+      formData.lote,
+      formData.talla,
+      formData.producto,
+      parseFloat(formData.presentacionKgs),
+      formData.diaJuliano,
+      formData.cicloid
+    );
+    const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
+    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
+    const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
+    const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
+    const año = ciclo ? ciclo.año : "2025";
+    const barcode = (
+      formData.lote.padStart(4, "0") +
+      idGranja +
+      idTalla +
+      formData.diaJuliano.padStart(3, "0") +
+      año +
+      kilosFormateados +
+      idProducto +
+      numeroEtiqueta
+    );
+    const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
+    const qrContent = `Planta: ${formData.nombrePlanta}, 
+      Granja: ${granjas.find(g => g.granjaid === formData.granja)?.granja || ''}, 
+      Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, 
+      Lote: ${formData.lote}, 
+      Ciclo: ${cicloDisplay}, 
+      Camarones: ${formData.camarones}, 
+      Pres.: ${formData.presentacionKgs}, 
+      DiaJuliano: ${formData.diaJuliano}, 
+      Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, 
+      Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, 
+      Barras: ${barcode}`;
+    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
+    return { barcode, qrContent };
+  }) : [];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -203,21 +286,21 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
             ...c,
             cicloid: Number(c.cicloid),
           }));
-        console.log("Ciclos obtenidos:", activeCiclos); // Depuración
+        //console.log("Ciclos obtenidos:", activeCiclos); // Depuración
         setCiclos(activeCiclos);
 
         // Fetch bodegas
         const bodegasResponse = await axios.get('http://localhost:3000/api/bodegas', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Bodegas obtenidas:", bodegasResponse.data); // Depuración
+        //console.log("Bodegas obtenidas:", bodegasResponse.data); // Depuración
         setBodegas(bodegasResponse.data);
 
         // Fetch ubicaciones (only estado = 'vacío')
         const ubicacionesResponse = await axios.get('http://localhost:3000/api/ubicaciones', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Ubicaciones obtenidas:", ubicacionesResponse.data); // Depuración
+        //console.log("Ubicaciones obtenidas:", ubicacionesResponse.data); // Depuración
         setUbicaciones(ubicacionesResponse.data);
 
         // Fetch granjas
@@ -230,9 +313,9 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
             ...g,
             granjaid: Number(g.granjaid),
           }));
-        console.log("Granjas obtenidas:", validGranjas);
+        //console.log("Granjas obtenidas:", validGranjas);
         setGranjas(validGranjas);
-        setAvailableGranjas(validGranjas); // Inicializar availableGranjas
+        setAvailableGranjas(validGranjas);
 
         // Fetch tallas
         const tallasResponse = await axios.get('http://localhost:3000/api/tallas/active', {
@@ -244,7 +327,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
             ...t,
             tallaid: Number(t.tallaid),
           }));
-        console.log("Tallas obtenidas:", validTallas);
+        //console.log("Tallas obtenidas:", validTallas);
         setTallas(validTallas);
 
         // Set default to latest cycle
@@ -254,7 +337,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
               ciclo.cicloid > latest.cicloid ? ciclo : latest, 
               activeCiclos[0]
           );
-          console.log("Ciclo inicial seleccionado:", latestCiclo);
+          //console.log("Ciclo inicial seleccionado:", latestCiclo);
           setFormData((prev) => ({ ...prev, cicloid: latestCiclo.cicloid }));
           setDeleteForm((prev) => ({ ...prev, cicloid: latestCiclo.cicloid }));
         } else if (activeCiclos.length === 0) {
@@ -281,7 +364,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
               headers: { Authorization: `Bearer ${token}` },
             }
           );
-          console.log("Recepciones obtenidas:", reciboResponse.data);
+          //console.log("Recepciones obtenidas:", reciboResponse.data);
           const validRecepciones = reciboResponse.data.filter(
             (r: Recepcion) => r.status === 'A' && r.granjaid != null && !isNaN(Number(r.granjaid))
           );
@@ -290,7 +373,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
           // Filtrar granjas según granjaid de las recepciones
           const granjaIds = Array.from(new Set(validRecepciones.map((r: Recepcion) => Number(r.granjaid))));
           const filteredGranjas = granjas.filter((g) => granjaIds.includes(g.granjaid));
-          console.log("Granjas disponibles filtradas:", filteredGranjas);
+          //console.log("Granjas disponibles filtradas:", filteredGranjas);
           setAvailableGranjas(filteredGranjas.length > 0 ? filteredGranjas : granjas);
 
           // Actualizar formData.granja si no es válida
@@ -303,7 +386,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         } catch (err) {
           console.error("Error al obtener recepciones:", err);
           setError("Error al obtener recepciones. Mostrando todas las granjas.");
-          setAvailableGranjas(granjas); // Fallback a todas las granjas
+          setAvailableGranjas(granjas);
           setFormData((prev) => ({ ...prev, granja: 0 }));
           toast.error("Error al obtener recepciones del servidor.");
         }
@@ -361,6 +444,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
     //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort();
     const secciones = Array.from(new Set(configs.map(c => c.seccion))).sort((a, b) => a - b);
+    //const secciones = Array.from(new Set(configs.map((c) => c.seccion))).sort((a, b) => a.localeCompare(b));
     const fondos = Array.from(new Set(configs.map((c) => c.fondo))).sort();
     const pisos = Array.from(new Set(configs.map((c) => c.piso))).sort();
     return { bahias, secciones, fondos, pisos };
@@ -370,7 +454,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
   // Manejar cambios en inputs y sincronizar Kgs ↔ Lbs
   const handleInputChange = (field: keyof FormData, value: string | boolean | number) => {
-    console.log(`Cambiando ${field} a:`, value); // Depuración
+    //console.log(`Cambiando ${field} a:`, value); // Depuración
     setFormData((prev) => {
       let updated = { ...prev, [field]: value };
       if (field === "presentacionKgs") {
@@ -395,7 +479,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       if (field === "cicloid") {
         const newValue = Number(value);
         if (isNaN(newValue) || newValue === 0) {
-          console.warn("Valor de cicloid no válido:", value);
+          //console.warn("Valor de cicloid no válido:", value);
           toast.error("Por favor, seleccione un ciclo válido.");
           return prev; // No actualizar si el valor no es válido
         }
@@ -440,75 +524,31 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     });
  };
 
-  // Obtener el próximo consecutivo para un lote, talla, producto, kgs y diaJuliano
-  const getNextFolio = (lote: string, tallaId: number, producto: string, kgs: number, diaJuliano: string, cicloid: number): number => {
-    //const tallaNombre = tallas.find((t) => t.tallaid === tallaId)?.talla || "";
-    const matchingEntries = detalleEtiquetas.filter(
-      (detalle) =>
-        detalle.sLote === lote &&
-        detalle.cicloid === cicloid &&
-        detalle.tallaid === tallaId && 
-        detalle.producto === producto &&
-        detalle.kgs === kgs &&
-        detalle.diaJuliano === diaJuliano
-    );
-    const totalCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
-    const idGranja = String(formData.granja).padStart(3, "0");
-    const idTalla = String(tallaId).padStart(2, "0");
-    const kilosFormateados = String(parseInt(String(kgs), 10)).padStart(3, "0");
-    const idProducto = producto === "SIN_CABEZA" ? "01" : "02";
-    const ciclo = ciclos.find((c) => c.cicloid === cicloid);
-    const año = ciclo ? ciclo.año : "2025"; // Fallback to current year
-    const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${diaJuliano}${año}${kilosFormateados}${idProducto}`;
-    const matchingBarcodes = impresos
-      .filter((barcode) => barcode.startsWith(prefix))
-      .map((barcode) => parseInt(barcode.slice(-4)))
-      .sort((a, b) => b - a);
-    const lastFolio = matchingBarcodes.length > 0 ? matchingBarcodes[0] : 0;
-    return Math.max(totalCartones, lastFolio) + 1;
-  };
+  const handlePrint = async () => {
+    console.log("handlePrint called with formData:", formData);
 
-  // Genera lista de códigos de barras para previsualizar
-  const codigos = Array.from({ length: formData.numeroCartones }, (_, i) => {
-    const idGranja = String(formData.granja).padStart(3, "0");
-    const idTalla = String(formData.talla).padStart(2, "0");
-    const startFolio = getNextFolio(
-      formData.lote,
-      formData.talla,
-      formData.producto,
-      parseFloat(formData.presentacionKgs),
-      formData.diaJuliano,
-      formData.cicloid
-    );
-    const numeroEtiqueta = String(startFolio + i).padStart(4, "0");
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, "0");
-    const idProducto = formData.producto === "SIN_CABEZA" ? "01" : "02";
-    const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
-    const año = ciclo ? ciclo.año : "2025"; // Fallback to current year
-    const barcode = (
-      formData.lote.padStart(4, "0") +
-      idGranja +
-      idTalla +
-      formData.diaJuliano.padStart(3, "0") +
-      año +
-      kilosFormateados +
-      idProducto +
-      numeroEtiqueta
-    );
-    const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.granja || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
-    //    const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Bodega: ${bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || ''}, Posicion: ${formData.posicion}, Barras: ${barcode}`;
-    return { barcode, qrContent };
-  });
-
-  const handlePrint = () => {
     if (formData.numeroCartones <= 0) {
-      toast.error("Por favor, ingrese un número válido de etiquetas/cartones.");
+        console.warn("Validation failed: numeroCartones <= 0", formData.numeroCartones);
+        toast.error("Por favor, ingrese un número válido de etiquetas/cartones.");
       return;
     }
     
     if (!formData.fechaEmpaque || !formData.cicloid || !formData.granja || !formData.bodega || !formData.posicion || !formData.talla) {
+      console.warn("Validation failed: Missing required fields", {
+        fechaEmpaque: formData.fechaEmpaque,
+        cicloid: formData.cicloid,
+        granja: formData.granja,
+        bodega: formData.bodega,
+        posicion: formData.posicion,
+        talla: formData.talla,
+      });
       toast.error("Por favor, complete todos los campos requeridos: fecha, ciclo, granja, talla, bodega y posición.");
+      return;
+    }
+
+    if (!tallas.find((t) => t.tallaid === formData.talla)) {
+      console.warn("Validation failed: Invalid talla", formData.talla, tallas);
+      toast.error("La talla seleccionada no es válida.");
       return;
     }
 
@@ -523,27 +563,55 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     });
 
     if (fechaFormateada === "Invalid Date") {
+      console.warn("Validation failed: Invalid date", formData.fechaEmpaque);
       toast.error("La fecha de empaque no es válida.");
       return;
     }
+    
+  console.log("Codigos generated:", codigos);
+  if (codigos.length === 0) {
+    console.warn("No barcodes generated. Check talla and tallas:", formData.talla, tallas);
+    toast.error("No se generaron códigos de barras. Verifique la talla seleccionada.");
+    return;
+  }
 
     const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
+    // Crear la nueva entrada para detalleEtiquetas
+    const nuevaEntrada: DetalleEtiqueta = {
+      id: detalleEtiquetas.length + 1,
+      fecha: fechaFormateada,
+      diaJuliano: formData.diaJuliano,
+      sLote: formData.lote,
+      cicloid: formData.cicloid,
+      tallaid: formData.talla,
+      talla: tallas.find((t) => t.tallaid === formData.talla)?.talla || "",
+      cartones: formData.numeroCartones,
+      kgs: parseFloat(formData.presentacionKgs),
+      producto: formData.producto,
+      posicion: formData.posicion,
+    };
+    console.log("Nueva entrada para detalleEtiquetas:", nuevaEntrada);
+
     // Crear el array de JSON con los datos de las etiquetas
-    const jsonEtiquetas = codigos.map((codigo) => {
+    const jsonEtiquetas = codigos.map((codigo, index) => {
       const fechaCaduca = new Date(fechaLocal);
       fechaCaduca.setFullYear(fechaCaduca.getFullYear() + 2);
       const leyendaAlergias = "Este producto puede causar alergias en personas suceptibles.";
       const leyendaAlimentaria = "El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.";
-
+      const id = detalleEtiquetas.length + 1 + index;
       return {
+        id,
         Planta: formData.nombrePlanta,
         Granja: granjas.find(g => g.granjaid === formData.granja)?.granja || '',
         TipoCamarón: formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA",
         Talla: tallas.find(t => t.tallaid === formData.talla)?.talla || '',
         Lote: `${formData.lote}-${cicloDisplay}`,
         Empaque: fechaFormateada,
+        DiaJuliano: formData.diaJuliano,
+        LoteId: formData.lote,
+        CicloId: formData.cicloid,
         C_Antes_De: fechaCaduca.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }),
         Peso: `${formData.presentacionKgs} kgs`,
         Hora: formData.horaEmpaque,
@@ -552,33 +620,58 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
         Metabisulfito: formData.metabisulfato ? "SÍ" : "NO",
         Bodega: bodegas.find(b => b.bodegaid === formData.bodega)?.bodega || '',
         Posicion: formData.posicion,
-        Barras: codigo.barcode,
         LeyendaAlergias: leyendaAlergias,
         LeyendaAlimentaria: leyendaAlimentaria,
+        Barras: codigo.barcode,
         QRContent: codigo.qrContent,
       };
     });
 
-    // Mostrar el JSON en la consola (puedes modificarlo para guardarlo o enviarlo a otro lugar)
+    // Preparar los datos para enviar al servidor
+  const payload = {
+    Etiquetas: jsonEtiquetas,
+    configuracion: {
+      impresora: formData.zDesigner
+    },
+  };
+
+    try {
+      // Enviar los datos al servidor
+    console.log("Sending payload to server:", payload);
+    const response = await axios.post('http://localhost:3000/api/etiquetas', payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log("Server response:", response.data);
+
+      if (response.status === 200 || response.status === 201) {
+        // Actualizar estados locales
+        setImpresos((prev) => [...prev, ...codigos.map((c) => c.barcode)]);
+        setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
+        toast.success(`Se imprimirán ${formData.numeroCartones} etiquetas, para un total de ${formData.numeroCartones} cartones.`);
+        console.log("Datos enviados al servidor:", payload);
+        console.log("Respuesta del servidor:", response.data);
+      } else {
+        throw new Error("Respuesta inesperada del servidor");
+      }
+    } catch (error: any) {
+      console.error("Error al enviar datos al servidor:", error);
+      if (error.response) {
+        toast.error(`Error del servidor: ${error.response.data.error || 'Error desconocido'}`);
+      } else if (error.request) {
+        toast.error("No se pudo conectar con el servidor. Verifica la conexión.");
+      } else {
+        toast.error("Error al preparar la solicitud. Por favor, intenta de nuevo.");
+      }
+    }
+    /*// Mostrar el JSON en la consola (puedes modificarlo para guardarlo o enviarlo a otro lugar)
     console.log("JSON de etiquetas:", JSON.stringify(jsonEtiquetas, null, 2));
 
     // Actualizar estados
     setImpresos((prev) => [...prev, ...codigos.map(c => c.barcode)]);
-    const nuevaEntrada: DetalleEtiqueta = {
-      id: detalleEtiquetas.length + 1,
-      fecha: fechaFormateada,
-      diaJuliano: formData.diaJuliano,
-      sLote: formData.lote,
-      cicloid: formData.cicloid,
-      tallaid: formData.talla, // Agregar tallaid
-      talla: tallas.find((t) => t.tallaid === formData.talla)?.talla || "",
-      cartones: formData.numeroCartones,
-      kgs: parseFloat(formData.presentacionKgs),
-      producto: formData.producto,
-      posicion: formData.posicion,
-    };
+    
     setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
     toast.success(`Se imprimirán ${formData.numeroCartones} Etiquetas, para un Total de ${formData.numeroCartones} Cartones.`);
+    */
   };
 
   const handleDelete = () => {
@@ -588,13 +681,19 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
       return;
     }
 
+    const selectedTalla = tallas.find((t) => t.talla === talla);
+    if (!selectedTalla) {
+      toast.error("La talla seleccionada no es válida.");
+      return;
+    }
+
     // Encontrar entradas coincidentes usando diaJuliano
     const matchingEntries = detalleEtiquetas
       .filter(
         (detalle) =>
           detalle.sLote === lote &&
           detalle.cicloid === cicloid &&
-          detalle.talla === talla &&
+          detalle.tallaid === selectedTalla.tallaid &&
           detalle.producto === producto &&
           detalle.kgs === parseFloat(formData.presentacionKgs) &&
           detalle.diaJuliano === formData.diaJuliano
@@ -613,11 +712,11 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
 
     // Generar prefijo de código de barras para eliminación
     const idGranja = String(formData.granja).padStart(3, "0");
-    const idTalla = tallas.find((t) => t.talla === talla)?.tallaid.toString().padStart(2, "0") || "01";
+    const idTalla = String(selectedTalla.tallaid).padStart(2, "0");
     const kilosFormateados = String(parseInt(String(matchingEntries[0]?.kgs || 20), 10)).padStart(3, "0");
     const idProducto = producto === "SIN_CABEZA" ? "01" : "02";    
     const ciclo = ciclos.find((c) => c.cicloid === cicloid);
-    const año = ciclo ? ciclo.año : "2025"; // Fallback to current year
+    const año = ciclo ? ciclo.año : "2025";
     const prefix = `${lote.padStart(4, "0")}${idGranja}${idTalla}${formData.diaJuliano}${año}${kilosFormateados}${idProducto}`;
 
     const matchingBarcodes = impresos
@@ -695,14 +794,19 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
   const registros = Object.values(totalPorLoteTallaProductoPosicion);
   const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
   const totalKgs = registros.reduce((sum, registro) => sum + registro.cartones * registro.kgs, 0);
+
   const uniqueLotes = Array.from(new Set(detalleEtiquetas
     .filter((d) => d.cicloid === deleteForm.cicloid)
     .map((d) => d.sLote)
   ));
-  const uniqueTallas = Array.from(new Set(detalleEtiquetas
-    .filter((d) => d.cicloid === deleteForm.cicloid)
-    .map((d) => d.talla)
-  ));
+  const uniqueTallas = Array.from(
+    new Set(
+      detalleEtiquetas
+        .filter((d) => d.cicloid === deleteForm.cicloid)
+        .map((d) => d.tallaid)
+        .map((tallaid) => tallas.find((t) => t.tallaid === tallaid)?.talla || "")
+    )
+  ).filter((talla) => talla !== "");
   const uniqueProductos = Array.from(new Set(detalleEtiquetas
     .filter((d) => d.cicloid === deleteForm.cicloid)
     .map((d) => d.producto)
@@ -716,7 +820,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
     const mostrarCamarones = true;
     const leyendaAlergias = "Este producto puede causar alergias en personas suceptibles.";
     const leyendaAlimentaria = "El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.";
-    const ciclo = ciclos.find(c => c.cicloid === formData.cicloid);
+    const ciclo = ciclos.find((c) => c.cicloid === formData.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
 
     return (
@@ -789,12 +893,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <label>Ciclo</label>
                 <select
                   value={deleteForm.cicloid}
-                  onChange={(e) => {
-                    console.log("Valor crudo de ciclo seleccionado en deleteForm:", e.target.value);
-                    const value = Number(e.target.value);
-                    console.log("Ciclo seleccionado en deleteForm:", value);
-                    handleDeleteFormChange("cicloid", value);
-                  }}
+                  onChange={(e) => handleDeleteFormChange("cicloid", Number(e.target.value))}
                   className="w-full border px-2 py-1 rounded"
                 >
                   <option value={0}>Seleccionar</option>
@@ -885,12 +984,7 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
                 <label>Ciclo</label>
                 <select
                   value={formData.cicloid}
-                  onChange={(e) => {
-                    console.log("Valor crudo de ciclo seleccionado:", e.target.value);
-                    const value = Number(e.target.value);
-                    console.log("Ciclo seleccionado:", value);
-                    handleInputChange("cicloid", value);
-                  }}
+                  onChange={(e) => handleInputChange("cicloid", Number(e.target.value))}
                   className="w-full border px-2 py-1 rounded"
                 >
                   <option value={0}>Seleccionar</option>
@@ -1132,74 +1226,6 @@ const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([
               ))}*/}
             </div>
           </div>
-          {/*<div className="bg-white p-4 rounded shadow border max-h-[400px] overflow-y-auto mt-4">
-            <h2 className="text-lg font-semibold">Vista Previa</h2>
-            <div className="space-y-6">
-              {codigos.map((codigo, idx) => {
-                const ciclo = ciclos.find(c => c.cicloid === formData.cicloid);
-                const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-                return (
-                <div
-                  key={idx}
-                  style={{ width: "300px", padding: "20px", border: "1px solid #000", fontSize: "12px" }}
-                >
-                  <div><strong>{formData.nombrePlanta}</strong></div>
-                  <div><strong>{cicloDisplay}</strong></div>
-                  <div><strong>{bodegas.find(b => b.id === formData.bodega)?.nombre || ''}</strong></div>
-                  <div><strong>{formData.posicion}</strong></div>
-                  <div><strong>{tallas.find(t => t.tallaid === formData.talla)?.talla || ''}</strong></div>
-                  <div><strong>{formData.producto === "SIN_CABEZA" ? "S/CABEZA" : "C/CABEZA"}</strong></div>
-                  <div><strong>{granjas.find(g => g.granjaid === formData.granja)?.nombre || ''}</strong></div>
-                  <div><strong>L {`${formData.lote}-${cicloDisplay}`}</strong></div>
-                  <div><strong>Empaque:</strong> {new Date(formData.fechaEmpaque).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
-                  <div>
-                    <strong>C. Antes De:</strong> {new Date(new Date(formData.fechaEmpaque).setFullYear(new Date(formData.fechaEmpaque).getFullYear() + 2)).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                  </div>
-                  <div><strong>Conserve -18 °C</strong></div>
-                  <div><strong>Metabisulfito:</strong> {formData.metabisulfato ? "SI" : "NO"}</div>
-                  <div><strong>Cont. Nto. {formData.presentacionKgs} kgs.</strong></div>
-                  <div><strong>Hora:</strong> {formData.horaEmpaque}</div>
-                  {parseFloat(formData.camarones) > 0 && <div><strong>Camarones:</strong> {formData.camarones}</div>}
-                  <div><strong>Uniformidad:</strong> {parseFloat(formData.uniformidad).toFixed(2)}</div>
-                  <div><strong>Barras:</strong> {codigo.barcode}</div>
-                  <div><strong>Leyenda Alergias:</strong> Contiene alérgenos (crustáceos)</div>
-                  <div><strong>Leyenda Alimentaria:</strong> Producto alimenticio</div>
-                  <div style={{ marginTop: "10px" }}>
-                    <Barcode value={codigo.barcode} height={50} displayValue={true} />
-                  </div>
-                  <div style={{ marginTop: "10px" }}>
-                    <QRCodeSVG value={codigo.qrContent} size={100} level="M" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>*/}
-          {/*impresos.length > 0 && (
-            <div className="bg-white p-4 rounded shadow border mt-4">
-              <h2 className="text-lg font-semibold text-red-600">Últimos impresos</h2>
-              <div className="space-y-6">
-                {impresos.map((codigo, idx) => (
-                  <div key={idx} className="flex flex-col items-center">
-                    <p className="font-mono">{codigo}</p>
-                    <Barcode value={codigo} height={60} displayValue={true} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )*/}
-          {/*eliminados.length > 0 && (
-            <div className="bg-white p-4 rounded shadow border mt-4">
-              <h2 className="text-lg font-semibold text-red-600">Últimos eliminados</h2>
-              <div className="space-y-6">
-                {eliminados.map((codigo, idx) => (
-                  <div key={idx} className="flex flex-col items-center">
-                    <p className="font-mono">{codigo}</p>
-                    <Barcode value={codigo} height={60} displayValue={true} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )*/}
         </div>
         <div className="space-y-4">
           <div className="bg-white rounded shadow border">
