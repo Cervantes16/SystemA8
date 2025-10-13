@@ -17,6 +17,7 @@ import Granjas from './catalogs/Granjas';
 import Productos from './catalogs/Productos';
 import Propietarios from './catalogs/Propietarios';
 import Proveedores from './catalogs/Proveedores';
+import ErrorBoundary from './ErrorBoundary';
 
 export default function Dashboard() {
   const { userPermissions } = useAuth();
@@ -111,7 +112,9 @@ export default function Dashboard() {
       //case 'empaque':
       //  return <Empaque />;
       case 'etiquetas':
-        return <GeneracionEtiquetas />;
+        return <ErrorBoundary>
+                 <GeneracionEtiquetas />
+               </ErrorBoundary>;
       default:
         return (
           <div className="flex-1 flex items-center justify-center bg-gray-50">
