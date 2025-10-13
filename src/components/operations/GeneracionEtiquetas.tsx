@@ -256,6 +256,8 @@ const GeneracionEtiquetas: React.FC = () => {
       } catch (err: any) {
         setError(err.message);
         toast.error(err.message);
+        // 🔹 Oculta el error después de 4 segundos
+        setTimeout(() => setError(null), 4000);
       } finally {
         setIsLoading(false);
       }
@@ -308,6 +310,8 @@ const GeneracionEtiquetas: React.FC = () => {
           setAvailableGranjas(granjas);
           setFormData(prev => ({ ...prev, granja: 0 }));
           toast.error(err.message);
+          // 🔹 Oculta el error después de 4 segundos
+          setTimeout(() => setError(null), 4000);
         }
       } else {
         setAvailableGranjas(granjas);
@@ -638,6 +642,8 @@ const GeneracionEtiquetas: React.FC = () => {
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
+      // 🔹 Oculta el error después de 4 segundos
+      setTimeout(() => setError(null), 4000);
     }
   };
 
@@ -1222,7 +1228,9 @@ const GeneracionEtiquetas: React.FC = () => {
           <div className="bg-white p-4 rounded shadow border max-h-[400px] overflow-y-auto mt-4">
             <h2 className="text-lg font-semibold">Vista previa</h2>
             <div className="space-y-6">
-              {codigos.length > 0 ? (
+              
+              {codigos.map(c => c.barcode).join(", ")}
+              {/*{codigos.length > 0 ? (
                 codigos.map((codigo, idx) => (
                   <div key={idx} className="flex flex-col items-center space-y-2">
                     <p className="font-mono">{codigo.barcode}</p>
@@ -1232,7 +1240,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 ))
               ) : (
                 <p className="text-center text-gray-600">No hay códigos de barras para mostrar.</p>
-              )}
+              )}*/}
             </div>
           </div>
         </div>

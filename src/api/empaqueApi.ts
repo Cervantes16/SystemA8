@@ -226,7 +226,7 @@ export const getDetalleEtiquetas = async (cicloid: number, lote: string): Promis
     } else if (error.response?.status === 403) {
       throw new Error('No tienes permiso para acceder a las etiquetas.');
     } else if (error.response?.status === 404) {
-      throw new Error('No se encontraron etiquetas para el ciclo y lote seleccionados.');
+      throw new Error('No se encontraron registros para el ciclo y lote seleccionados.');
     } else {
       throw new Error('Error al obtener las etiquetas. Intenta de nuevo.');
     }
