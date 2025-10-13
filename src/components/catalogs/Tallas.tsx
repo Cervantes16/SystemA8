@@ -9,14 +9,14 @@ import {
 } from "../../api/tallasApi";
 
 interface Talla {
-  idtalla: number;
+  tallaid: number;
   talla: string;
   ccabeza: string;
   status: string;
 }
 
 interface FormData {
-  idtalla: string;
+  tallaid: string;
   talla: string;
   ccabeza: string;
   status: string;
@@ -28,7 +28,7 @@ const Tallas: React.FC = () => {
   const [showForm, setShowForm] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [formData, setFormData] = useState<FormData>({
-    idtalla: "",
+    tallaid: "",
     talla: "",
     ccabeza: "",
     status: "A",
@@ -51,13 +51,13 @@ const Tallas: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.idtalla) {
+    if (formData.tallaid) {
       // actualizar
-      const updated = await updateTalla(parseInt(formData.idtalla), formData);
+      const updated = await updateTalla(parseInt(formData.tallaid), formData);
       if (updated) {
         setTallas((prev) =>
           prev.map((t) =>
-            t.idtalla === updated.idtalla ? { ...t, ...updated } : t
+            t.tallaid === updated.tallaid ? { ...t, ...updated } : t
           )
         );
       }
@@ -69,7 +69,7 @@ const Tallas: React.FC = () => {
       }
     }
     setShowForm(false);
-    setFormData({ idtalla: "", talla: "", ccabeza: "", status: "A" });
+    setFormData({ tallaid: "", talla: "", ccabeza: "", status: "A" });
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -80,7 +80,7 @@ const Tallas: React.FC = () => {
     if (selectedRow !== null) {
       const talla = tallas[selectedRow];
       setFormData({
-        idtalla: talla.idtalla.toString(),
+        tallaid: talla.tallaid.toString(),
         talla: talla.talla,
         ccabeza: talla.ccabeza,
         status: talla.status,
@@ -92,7 +92,7 @@ const Tallas: React.FC = () => {
   const handleDelete = async () => {
     if (selectedRow !== null) {
       const talla = tallas[selectedRow];
-      const deleted = await deleteTalla(talla.idtalla);
+      const deleted = await deleteTalla(talla.tallaid);
       if (deleted) {
         setTallas((prev) => prev.filter((_, index) => index !== selectedRow));
         setSelectedRow(null);
@@ -116,7 +116,7 @@ const Tallas: React.FC = () => {
         <div className="border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-lg font-medium text-gray-900">
-              {formData.idtalla ? "Modificar Talla" : "Nueva Talla"}
+              {formData.tallaid ? "Modificar Talla" : "Nueva Talla"}
             </h2>
             <button
               onClick={() => setShowForm(false)}
@@ -138,7 +138,7 @@ const Tallas: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={formData.idtalla || tallas.length + 1}
+                value={formData.tallaid || tallas.length + 1}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
               />
@@ -258,7 +258,7 @@ const Tallas: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {tallas.map((talla, index) => (
               <tr
-                key={talla.idtalla}
+                key={talla.tallaid}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                   selectedRow === index
@@ -269,7 +269,7 @@ const Tallas: React.FC = () => {
                 }`}
               >
                 <td className="px-4 py-3 text-sm text-gray-900">
-                  {talla.idtalla}
+                  {talla.tallaid}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">
                   {talla.talla}

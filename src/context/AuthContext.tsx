@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
-import { AuthUser } from '../types';
+import { jwtDecode } from 'jwt-decode';
 
 interface Permiso {
   permisoid: number;
@@ -8,85 +8,148 @@ interface Permiso {
   descripcion: string;
 }
 
+interface AuthUser {
+  id: number;
+  username: string;
+  nombrecompleto: string;
+  role: string;
+  isAuthenticated: boolean;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   userPermissions: Permiso[];
   isLoading: boolean;
+  error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
+  retryAuth: () => void; // Added for retrying authentication
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Axios interceptor setup
+axios.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
-    const savedUser = localStorage.getItem('user');
-    console.log('Saved user from localStorage:', savedUser); // Debug
+    const savedUser = sessionStorage.getItem('user');
+    console.log('Saved user from sessionStorage:', savedUser);
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [token, setToken] = useState<string | null>(() => {
-    const savedToken = localStorage.getItem('token');
-    console.log('Saved token from localStorage:', savedToken); // Debug
+    const savedToken = sessionStorage.getItem('token');
+    console.log('Saved token from sessionStorage:', savedToken);
     return savedToken;
   });
   const [userPermissions, setUserPermissions] = useState<Permiso[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sincronizar token y user con localStorage
+  // Synchronize token with sessionStorage
   useEffect(() => {
+    console.log('Token state changed:', token);
     if (token) {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
     } else {
-      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
     }
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
-    }
-  }, [token, user]);
+  }, [token]);
 
-  // Verificar autenticación y permisos al cargar
+  // Synchronize user with sessionStorage
   useEffect(() => {
-    const initializeAuth = async () => {
-      if (token && !user) {
-        // Restaurar user desde el backend si solo tenemos token
-        try {
-          const response = await axios.get('http://localhost:3000/api/usuarios/me', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          console.log('User data response:', response.data); // Debug
-          const userData = response.data;
-          setUser({
-            id: userData.id,
-            username: userData.username,
-            nombrecompleto: userData.nombrecompleto,
-            role: 'ADMINISTRADOR',
-            isAuthenticated: true,
-          });
-        } catch (error: any) {
-          console.error('Error al restaurar usuario:', error);
-          if (error.response?.status === 401) {
-            console.warn('Token inválido, limpiando estado');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setToken(null);
-            setUser(null);
-            setUserPermissions([]);
-          }
+    console.log('User state changed:', user);
+    if (user) {
+      sessionStorage.setItem('user', JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem('user');
+    }
+  }, [user]);
+
+  // Initialize authentication
+  const initializeAuth = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    if (token) {
+      // Validate token expiration
+      try {
+        const decoded: any = jwtDecode(token);
+        console.log('Decoded token:', decoded);
+        if (decoded.exp * 1000 < Date.now()) {
+          console.warn('Token expired, clearing state');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+          setUserPermissions([]);
+          setError('Sesión expirada. Por favor, inicia sesión nuevamente.');
+          setIsLoading(false);
+          return;
         }
+      } catch (error) {
+        console.error('Invalid token format:', error);
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+        setUserPermissions([]);
+        setError('Token inválido. Por favor, inicia sesión nuevamente.');
+        setIsLoading(false);
+        return;
       }
 
-      // Obtener permisos si tenemos user y token
-      if (user?.id && token) {
+      // Restore user from backend
+      console.log('Attempting to restore user with token:', token);
+      try {
+        const response = await axios.get('http://localhost:3000/api/usuarios/me');
+        console.log('User data response:', response.data);
+        const userData = response.data;
+        setUser({
+          id: userData.id,
+          username: userData.username,
+          nombrecompleto: userData.nombrecompleto,
+          role: 'ADMINISTRADOR',
+          isAuthenticated: true,
+        });
+      } catch (error: any) {
+        console.error('Error restoring user:', error.response?.status, error.response?.data);
+        if (error.response?.status === 401) {
+          console.warn('Invalid token, clearing state');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+          setUserPermissions([]);
+          setError('Token inválido. Por favor, inicia sesión nuevamente.');
+        } else if (error.response?.status === 404) {
+          console.warn('User endpoint not found, retaining token for retry');
+          setError('Servicio de usuario no disponible. Intenta de nuevo más tarde.');
+          // Retain token/user for retry
+        } else {
+          setError('Error al restaurar la sesión. Por favor, intenta de nuevo.');
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch permissions
+      if (user?.id) {
         try {
-          const response = await axios.get(`http://localhost:3000/api/usuariopermisos/${user.id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          console.log('Permissions response:', response.data); // Debug
+          const response = await axios.get(`http://localhost:3000/api/usuariopermisos/${user.id}`);
+          console.log('Permissions response:', response.data);
           if (Array.isArray(response.data)) {
-            const permissions = response.data.map((item: any) => ({
+            const permissions: Permiso[] = response.data.map((item: any) => ({
               permisoid: item.permisoid,
               permiso: item.permiso,
               descripcion: item.descripcion || '',
@@ -97,16 +160,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserPermissions([]);
           }
         } catch (error: any) {
-          console.error('Error al obtener permisos del usuario:', error);
+          console.error('Error fetching user permissions:', error);
           setUserPermissions([]);
         }
       }
+    }
 
-      setIsLoading(false);
-    };
+    setIsLoading(false);
+  };
 
+  // Run initialization on mount
+  useEffect(() => {
     initializeAuth();
-  }, [token, user]);
+  }, [token, user?.id]);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
@@ -114,9 +180,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         usuario: username,
         contraseña: password,
       });
-      console.log('Login response:', response.data); // Debug
+      console.log('Login response:', response.data);
       const { token, user: userData, permissions } = response.data;
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify({
+        id: userData.id,
+        username: userData.username,
+        nombrecompleto: userData.nombrecompleto,
+        role: 'ADMINISTRADOR',
+        isAuthenticated: true,
+      }));
       setToken(token);
       setUser({
         id: userData.id,
@@ -125,27 +198,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: 'ADMINISTRADOR',
         isAuthenticated: true,
       });
-      setUserPermissions(permissions || []);
+      setUserPermissions(
+        Array.isArray(permissions)
+          ? permissions.map((item: any) => ({
+              permisoid: item.permisoid,
+              permiso: item.permiso,
+              descripcion: item.descripcion || '',
+            }))
+          : []
+      );
+      setError(null);
       setIsLoading(false);
       return true;
-    } catch (error) {
-      console.error('Error al iniciar sesión:', error);
+    } catch (error: any) {
+      console.error('Error during login:', error);
+      setError('Error al iniciar sesión. Verifica tus credenciales o la conexión al servidor.');
+      setIsLoading(false);
       return false;
     }
   };
 
   const logout = () => {
-    console.log('Logout called'); // Debug
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    console.log('Logout triggered at:', new Date().toISOString());
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     setUser(null);
     setToken(null);
     setUserPermissions([]);
+    setError(null);
     setIsLoading(false);
   };
 
+  const retryAuth = () => {
+    console.log('Retrying authentication');
+    initializeAuth();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, userPermissions, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, userPermissions, isLoading, error, login, logout, retryAuth }}>
       {children}
     </AuthContext.Provider>
   );
