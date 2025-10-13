@@ -97,7 +97,7 @@ interface FormData {
 interface DetalleEtiqueta {
   id: number;
   fecha: string;
-  diaJuliano: string;
+  diajuliano: string;
   slote: string;
   cicloid: number;
   tallaid: number;
@@ -218,7 +218,7 @@ const GeneracionEtiquetas: React.FC = () => {
         detalle.tallaid === tallaId &&
         detalle.producto === producto &&
         detalle.kgs === kgs &&
-        detalle.diaJuliano === diaJuliano
+        detalle.diajuliano === diaJuliano
     );
     const totalCartones = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
     const idGranja = String(formData.granja).padStart(3, "0");
@@ -427,7 +427,7 @@ const GeneracionEtiquetas: React.FC = () => {
             .filter((d: DetalleEtiqueta) => 
               d.id != null &&
               d.fecha &&
-              d.diaJuliano &&
+              d.diajuliano != null &&
               d.slote &&
               d.cicloid != null &&
               d.tallaid != null &&
@@ -437,20 +437,29 @@ const GeneracionEtiquetas: React.FC = () => {
               d.producto 
               //d.posicion
             )
-            .map((d: DetalleEtiqueta) => ({
-              id: Number(d.id),
-              fecha: d.fecha,
-              diaJuliano: d.diaJuliano,
-              slote: d.slote,
-              cicloid: Number(d.cicloid),
-              tallaid: Number(d.tallaid),
-              talla: d.talla,
-              cartones: Number(d.cartones),
-              kgs: Number(d.kgs),
-              producto: d.producto,
-              //posicion: d.posicion || ''
-            }));
-          console.log("Fetched detalleEtiquetas:", validDetalleEtiquetas); // Debug
+            .map((d: DetalleEtiqueta) => {
+              const date = new Date(d.fecha);
+              const fechaFormateada = date.toLocaleDateString("es-ES", {
+                timeZone: "America/Mazatlan",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              });
+              return {
+                id: Number(d.id),
+                fecha: fechaFormateada,
+                diajuliano: String(d.diajuliano),
+                slote: String(d.slote),
+                cicloid: Number(d.cicloid),
+                tallaid: Number(d.tallaid),
+                talla: d.talla,
+                cartones: Number(d.cartones),
+                kgs: Number(d.kgs),
+                producto: d.producto,
+                //posicion: d.posicion || '',
+            };
+          });
+          console.log("Fetched detalleEtiquetas:", validDetalleEtiquetas);
           setDetalleEtiquetas(validDetalleEtiquetas);
         } catch (err: any) {
           console.error("Error al obtener datos:", err);
@@ -682,9 +691,9 @@ const GeneracionEtiquetas: React.FC = () => {
       detalle.slote === formData.lote &&
       detalle.tallaid === formData.talla &&
       detalle.producto === formData.producto &&
-      detalle.posicion === formData.posicion &&
+      //detalle.posicion === formData.posicion &&
       detalle.kgs === parseFloat(formData.presentacionKgs) &&
-      detalle.diaJuliano === formData.diaJuliano
+      detalle.diajuliano === formData.diaJuliano
   );
 
   // Determine detalleid for the labels
@@ -693,7 +702,7 @@ const GeneracionEtiquetas: React.FC = () => {
     const nuevaEntrada: DetalleEtiqueta = {
       id: detalleid,
       fecha: fechaFormateada,
-      diaJuliano: formData.diaJuliano,
+      diajuliano: formData.diaJuliano,
       slote: formData.lote,
       cicloid: formData.cicloid,
       tallaid: formData.talla,
@@ -701,7 +710,7 @@ const GeneracionEtiquetas: React.FC = () => {
       cartones: formData.numeroCartones,
       kgs: parseFloat(formData.presentacionKgs),
       producto: formData.producto,
-      posicion: formData.posicion,
+      //posicion: formData.posicion,
     };
 
     // Crear el array de JSON con los datos de las etiquetas
@@ -822,9 +831,9 @@ const GeneracionEtiquetas: React.FC = () => {
           detalle.tallaid === selectedTalla.tallaid &&
           detalle.producto === producto &&
           detalle.kgs === parseFloat(formData.presentacionKgs) &&
-          detalle.diaJuliano === formData.diaJuliano
+          detalle.diajuliano === formData.diaJuliano
       )
-    .sort((a, b) => b.id - a.id); // Ordenar por ID descendente
+    .sort((a, b) => b.id - a.id);
   console.log("matchingEntries:", matchingEntries); // Debug
 
   const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
@@ -909,7 +918,7 @@ const GeneracionEtiquetas: React.FC = () => {
     console.log("Processing detalle:", detalle); // Debug
     const ciclo = ciclos.find((c) => c.cicloid === detalle.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-    const key = `${detalle.fecha}-${detalle.slote}-${detalle.cicloid}-${detalle.talla}-${detalle.producto}-${detalle.posicion}`;
+    const key = `${detalle.fecha}-${detalle.slote}-${detalle.cicloid}-${detalle.talla}-${detalle.producto}`;//-${detalle.posicion}`;
     if (!acc[key]) {
       acc[key] = {
         fecha: detalle.fecha,
@@ -918,17 +927,18 @@ const GeneracionEtiquetas: React.FC = () => {
         cicloDisplay,
         talla: detalle.talla,
         producto: detalle.producto,
-        posicion: detalle.posicion || '',
+        //posicion: detalle.posicion || '',
         cartones: 0,
         kgs: detalle.kgs,
       };
     }
     acc[key].cartones += detalle.cartones;
     return acc;
-  }, {} as Record<string, { fecha: string; lote: string; cicloid: number; cicloDisplay: string; talla: string; producto: string; posicion: string; cartones: number; kgs: number }>);
+  }, {} as Record<string, { fecha: string; lote: string; cicloid: number; cicloDisplay: string; talla: string; producto: string; cartones: number; kgs: number }>);
+    // posicion: string; 
 
   const registros = Object.values(totalPorLoteTallaProductoPosicion);
-  console.log("Registros for rendering:", registros); // Debug
+  //console.log("Registros for rendering:", registros);
   const totalCartones = registros.reduce((sum, registro) => sum + registro.cartones, 0);
   const totalKgs = registros.reduce((sum, registro) => sum + registro.cartones * registro.kgs, 0);
 
@@ -1383,7 +1393,7 @@ const GeneracionEtiquetas: React.FC = () => {
                 <span>Cartones</span>
                 <span>(Kgs)</span>
                 <span>Producto</span>
-                <span>Posición</span>
+                {/*<span>Posición</span>*/}
               </div>
               {registros.length > 0 ? (
                 registros.map((registro, idx) => (
@@ -1395,7 +1405,7 @@ const GeneracionEtiquetas: React.FC = () => {
                     <span>{registro.cartones}</span>
                     <span>{registro.kgs}</span>
                     <span>{registro.producto === "S/CABEZA" ? "S/CABEZA" : "C/CABEZA"}</span>
-                    <span>{registro.posicion || 'N/A'}</span>
+                    {/*<span>{registro.posicion || 'N/A'}</span>*/}
                   </div>
                 ))
               ) : (
