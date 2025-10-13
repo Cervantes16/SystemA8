@@ -132,8 +132,11 @@ const GeneracionEtiquetas: React.FC = () => {
   const [tallas, setTallas] = useState<Talla[]>([]);
   const [availableGranjas, setAvailableGranjas] = useState<Granja[]>([]);
   const [detalleEtiquetas, setDetalleEtiquetas] = useState<DetalleEtiqueta[]>([]);
+  const [impresos, setImpresos] = useState<string[]>([]);
+  const [eliminados, setEliminados] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     fechaEmpaque: "2025-09-27",
     diaJuliano: "270",
@@ -169,7 +172,7 @@ const GeneracionEtiquetas: React.FC = () => {
     { id: 2, fecha: "27/09/2025", diaJuliano: "270", slote: "1", cicloid: 1, tallaid: 10, talla: "51-60", cartones: 8, kgs: 20, producto: "S/CABEZA", posicion: "1-2B1" },
   ]);*/
 
-  const [impresos, setImpresos] = useState<string[]>([
+  /*const [impresos, setImpresos] = useState<string[]>([
     "0001001092702025020010001",
     "0001001092702025020010002",
     "0001001092702025020010003",
@@ -183,14 +186,13 @@ const GeneracionEtiquetas: React.FC = () => {
     "0001001102702025020010006",
     "0001001102702025020010007",
     "0001001102702025020010008",
-  ]);
+  ]);*/
 
-  const [eliminados, setEliminados] = useState<string[]>([
+  /*const [eliminados, setEliminados] = useState<string[]>([
     "0001001012702025020020001",
     "0001001012702025020020002",
-  ]);
+  ]);*/
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteForm, setDeleteForm] = useState<DeleteForm>({
     lote: "",
     cicloid: 0,
@@ -461,14 +463,40 @@ const GeneracionEtiquetas: React.FC = () => {
           });
           console.log("Fetched detalleEtiquetas:", validDetalleEtiquetas);
           setDetalleEtiquetas(validDetalleEtiquetas);
+
+          // Fetch barcodes for impresos
+          const barcodeResponse = await axios.get(
+            `http://localhost:3000/api/empaque/barcode/${formData.cicloid}/${formData.lote}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          console.log("Barcodes obtenidos:", barcodeResponse.data);
+
+          // Handle both single object and array responses
+          let barcodes: string[];
+          if (Array.isArray(barcodeResponse.data)) {
+            // If the response is an array, map the 'barras' property
+            barcodes = barcodeResponse.data.map((item: { barras: string }) => item.barras);
+          } else if (barcodeResponse.data && typeof barcodeResponse.data === 'object' && 'barras' in barcodeResponse.data) {
+            // If the response is a single object with a 'barras' property, wrap it in an array
+            barcodes = [barcodeResponse.data.barras];
+          } else {
+            // If the response is unexpected, set to empty array
+            barcodes = [];
+            console.warn("Unexpected barcode response format:", barcodeResponse.data);
+          }
+          setImpresos(barcodes);
         } catch (err: any) {
           console.error("Error al obtener datos:", err);
           if (err.response && err.response.status === 404) {
             setDetalleEtiquetas([]);
-            toast.info("No se encontraron detalles para el ciclo y lote seleccionados.");
+            setImpresos([]);
+            toast.info("No se encontraron datos para el ciclo y lote seleccionados.");
           } else {
-            setError("Error al obtener recepciones o detalle de etiquetas.");
+            setError("Error al obtener datos del servidor.");
             setDetalleEtiquetas([]);
+            setImpresos([]);
             toast.error("Error al obtener datos del servidor.");
           }
           setAvailableGranjas(granjas);
@@ -478,6 +506,7 @@ const GeneracionEtiquetas: React.FC = () => {
         setAvailableGranjas(granjas);
         setRecepciones([]);
         setDetalleEtiquetas([]);
+        setImpresos([]);
         setFormData((prev) => ({ ...prev, granja: 0 }));
       }
     };
@@ -778,6 +807,18 @@ const GeneracionEtiquetas: React.FC = () => {
             )
           );
         } else {
+          const nuevaEntrada: DetalleEtiqueta = {
+            id: detalleid,
+            fecha: fechaFormateada,
+            diajuliano: formData.diaJuliano,
+            slote: formData.lote,
+            cicloid: formData.cicloid,
+            tallaid: formData.talla,
+            talla: selectedTalla.talla,
+            cartones: formData.numeroCartones,
+            kgs: parseFloat(formData.presentacionKgs),
+            producto: formData.producto,
+          };
           setDetalleEtiquetas((prev) => [...prev, nuevaEntrada]);
         }
         toast.success(`Se imprimirán ${formData.numeroCartones} etiquetas, para un total de ${formData.numeroCartones} cartones.`);
