@@ -857,30 +857,6 @@ const GeneracionEtiquetas: React.FC = () => {
             <Plus size={16} /> Nuevo
           </button>
           <button
-            disabled={true}
-            className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-1 text-sm disabled:bg-gray-300"
-          >
-            <Edit size={16} /> Modificar
-          </button>
-          <button
-            onClick={handlePrint}
-            className="px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-1 text-sm hover:bg-blue-700"
-          >
-            <Printer size={16} /> Imprimir
-          </button>
-          <button
-            disabled={true}
-            className="px-3 py-2 bg-blue-500 text-white rounded flex items-center gap-1 text-sm disabled:bg-gray-300"
-          >
-            <Printer size={16} /> Imprimir con Salidas
-          </button>
-          <button
-            disabled={true}
-            className="px-3 py-2 bg-yellow-500 text-white rounded flex items-center gap-1 text-sm disabled:bg-gray-300"
-          >
-            <RefreshCw size={16} /> Subir Nube
-          </button>
-          <button
             onClick={() => setShowDeleteModal(true)}
             className="px-3 py-2 bg-red-600 text-white rounded flex items-center gap-1 text-sm hover:bg-red-700"
           >

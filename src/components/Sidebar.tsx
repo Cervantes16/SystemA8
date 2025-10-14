@@ -69,16 +69,16 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
       children: [
         { id: 'recepcion', label: 'Recepcion Producto', icon: Package },
         //{ id: 'empaque', label: 'Registrar Empaque', icon: Package2 },
-        { id: 'clasificacion', label: 'Clasificación', icon: Tag },
+        //{ id: 'clasificacion', label: 'Clasificación', icon: Tag },
         { id: 'concentrado', label: 'Generar Concentrado', icon: FileText },
         { id: 'concentrado-clientes', label: 'Generar Concentrado Clientes', icon: BarChart3 },
         { id: 'etiquetas', label: 'Generar Etiquetas', icon: Tag },
         { id: 'ventas', label: 'Ventas / Salidas', icon: ShoppingCart },
         { id: 'tablero', label: 'Tablero Procesos x Lote', icon: BarChart3 },
         { id: 'trazabilidad', label: 'Trazabilidad x Lotes', icon: Search },
-        { id: 'temperatura', label: 'Revision Temperatura', icon: Thermometer },
-        { id: 'enviar-temp', label: 'Enviar Temperaturas Nube', icon: Cloud },
-        { id: 'etiqueta-gam', label: 'Etiqueta Gam', icon: Tag },
+        //{ id: 'temperatura', label: 'Revision Temperatura', icon: Thermometer },
+        //{ id: 'enviar-temp', label: 'Enviar Temperaturas Nube', icon: Cloud },
+        //{ id: 'etiqueta-gam', label: 'Etiqueta Gam', icon: Tag },
       ]
     }
   ];
