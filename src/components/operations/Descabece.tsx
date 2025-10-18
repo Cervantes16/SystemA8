@@ -37,6 +37,7 @@ const Pesadas: React.FC = () => {
   const [empleadoId, setEmpleadoId] = useState('');
   const [empleado, setEmpleado] = useState<Employee | null>(null);
   const [kilos, setKilos] = useState(0);
+  const [motivo, setMotivo] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +114,11 @@ const Pesadas: React.FC = () => {
       return;
     }
 
+    if (selectedPesada && motivo.trim() === '') {
+      setError('Debe especificar un motivo para la modificación.');
+      return;
+    }
+
     const recipientes = Math.floor(kilos / 20);
     const dif = kilos - recipientes * 20;
     const total = kilos * precio;
@@ -137,8 +143,11 @@ const Pesadas: React.FC = () => {
       };
 
       if (selectedPesada) {
-        await axios.put(`http://localhost:3000/api/pesadas/${selectedPesada.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
+        await axios.put(`http://localhost:3000/api/pesadas/${selectedPesada.id}`, {
+          ...payload,
+          motivo,
+        }, {
+            headers: { Authorization: `Bearer ${token}` },
         });
       } else {
         await axios.post('http://localhost:3000/api/pesadas', payload, {
@@ -169,6 +178,7 @@ const Pesadas: React.FC = () => {
     setEmpleadoId('');
     setEmpleado(null);
     setKilos(0);
+    setMotivo('');
     setError(null);
   };
 
@@ -182,9 +192,7 @@ const Pesadas: React.FC = () => {
     );
   }
 
-  if (!user?.isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user?.isAuthenticated) return <Navigate to="/login" replace />;
 
   if (!userPermissions.some(p => p.permiso === 'Pesadas' || p.permiso === '*')) {
     return (
@@ -337,6 +345,20 @@ const Pesadas: React.FC = () => {
                 placeholder="20.00000"
               />
             </div>
+
+            {selectedPesada && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700">Motivo de modificación:</label>
+                <input
+                  type="text"
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  placeholder="Especifique el motivo"
+                />
+              </div>
+            )}
+
             <div className="flex justify-center gap-4">
               <button
                 onClick={handleGuardar}
