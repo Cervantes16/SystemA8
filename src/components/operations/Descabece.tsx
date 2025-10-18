@@ -113,6 +113,8 @@ const Pesadas: React.FC = () => {
       return;
     }
 
+    const recipientes = Math.floor(kilos / 20);
+    const dif = kilos - recipientes * 20;
     const total = kilos * precio;
     const hora = currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
     const fecha = currentTime.toISOString().split('T')[0];
@@ -130,6 +132,8 @@ const Pesadas: React.FC = () => {
         precio,
         total,
         lote,
+        recipientes,
+        dif,
       };
 
       if (selectedPesada) {
@@ -141,8 +145,11 @@ const Pesadas: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
+
       await fetchPesadas();
       setShowModal(false);
+
+      // Limpiamos solo los campos de empleado y kilos, pero no lote ni precio
       resetInputs();
       setSelectedPesada(null);
     } catch (err: any) {
@@ -159,8 +166,6 @@ const Pesadas: React.FC = () => {
   };
 
   const resetInputs = () => {
-    setLote('');
-    setPrecio(0);
     setEmpleadoId('');
     setEmpleado(null);
     setKilos(0);
