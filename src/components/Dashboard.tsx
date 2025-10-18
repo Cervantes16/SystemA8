@@ -18,6 +18,8 @@ import Productos from './catalogs/Productos';
 import Propietarios from './catalogs/Propietarios';
 import Proveedores from './catalogs/Proveedores';
 import ErrorBoundary from './ErrorBoundary';
+import TiposPreciosDescabece from './catalogs/TiposPreciosDescabece';
+import Descabece from './operations/Descabece'; 
 
 export default function Dashboard() {
   const { userPermissions } = useAuth();
@@ -109,12 +111,16 @@ export default function Dashboard() {
         return <RecepcionProducto />;
       case 'clasificacion':
         return <Clasificacion />;
+      case 'precio descabece':
+        return <TiposPreciosDescabece />;
       //case 'empaque':
       //  return <Empaque />;
       case 'etiquetas':
         return <ErrorBoundary>
                  <GeneracionEtiquetas />
                </ErrorBoundary>;
+      case 'descabece':
+        return <Descabece />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center bg-gray-50">

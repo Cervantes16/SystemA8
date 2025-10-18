@@ -376,6 +376,7 @@ export default function RecepcionProducto() {
       taras: d.taras,
       kgxTara: d.kilogramosxtara,
       basura: d.kilogramosbasura,
+      totalkgs: d.totalkilogramos,
     }));
 
     try {

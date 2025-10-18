@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, forwardRef } from 'react';
-import { Printer, RefreshCw, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
+import { Printer, RefreshCw, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import axios from 'axios';
 import {
   getCiclos,
   getBodegas,
@@ -15,6 +16,7 @@ import {
   getDetalleEtiquetas,
   getBarcodes,
   createEtiquetas,
+  deleteCajaPorBarcode,
 } from '../../api/empaqueApi';
 
 interface Ciclo {
@@ -122,6 +124,7 @@ interface DeleteForm {
   granja: string;
   talla: string;
   producto: string;
+  kilos: number;
   cantidadEliminar: number;
   motivo: string;
 }
@@ -132,7 +135,8 @@ interface Etiqueta {
 }
 
 const GeneracionEtiquetas: React.FC = () => {
-  const { user, isLoading: authLoading, error: authError, userPermissions } = useAuth();
+  const { user, isLoading: authLoading, error: authError, userPermissions, token, logout } = useAuth();
+  const navigate = useNavigate();
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
@@ -178,6 +182,7 @@ const GeneracionEtiquetas: React.FC = () => {
     granja: '',
     talla: '',
     producto: '',
+    kilos: 20,
     cantidadEliminar: 0,
     motivo: '',
   });
@@ -647,40 +652,50 @@ const GeneracionEtiquetas: React.FC = () => {
     }
   };
 
-  const handleDelete = () => {
-    const { lote, cicloid, talla, producto, cantidadEliminar, motivo } = deleteForm;
-    if (!lote || !cicloid || !talla || !producto || cantidadEliminar <= 0 || !motivo) {
+  const handleDelete = async () => {
+    const { lote, cicloid, talla, producto, kilos, cantidadEliminar, motivo } = deleteForm;
+
+    // 1. Input Validation
+    if (!lote || !cicloid || !talla || !producto || kilos <= 0 || cantidadEliminar <= 0 || !motivo) {
       toast.error('Por favor, complete todos los campos del formulario de eliminación.');
       return;
     }
+
+    // 2. Talla Validation
     const selectedTalla = tallas.find(t => t.talla === talla);
     if (!selectedTalla) {
       toast.error('La talla seleccionada no es válida.');
       return;
     }
-    const matchingEntries = detalleEtiquetas
-      .filter(
-        detalle =>
-          detalle.slote === lote &&
-          detalle.cicloid === cicloid &&
-          detalle.tallaid === selectedTalla.tallaid &&
-          detalle.producto === producto &&
-          detalle.kgs === parseFloat(formData.presentacionKgs) &&
-          detalle.diajuliano === formData.diaJuliano
-      )
-      .sort((a, b) => b.id - a.id);
+
+    // 3. Find Matching Etiquetas
+    const matchingEntries = detalleEtiquetas.filter(detalle =>
+      Number(detalle.slote) === Number(lote) &&
+      Number(detalle.cicloid) === Number(cicloid) &&
+      Number(detalle.tallaid) === Number(selectedTalla.tallaid) &&
+      detalle.producto === producto &&
+      Number(detalle.kgs) === Number(kilos) &&
+      Number(detalle.diajuliano) === Number(formData.diaJuliano)
+    );
     const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
+    console.log('Matching entries:', matchingEntries, 'Total cartons:', totalAvailableCartons);
+
     if (totalAvailableCartons < cantidadEliminar) {
       toast.error(`No hay suficientes cartones para eliminar. Disponibles: ${totalAvailableCartons}`);
       return;
     }
+
+    // 4. Generate Barcode Prefix
     const idGranja = String(formData.granja).padStart(3, '0');
     const idTalla = String(selectedTalla.tallaid).padStart(2, '0');
-    const kilosFormateados = String(parseInt(formData.presentacionKgs, 10)).padStart(3, '0');
+    const kilosFormateados = String(parseInt(kilos.toString(), 10)).padStart(3, '0');
     const idProducto = producto === 'S/CABEZA' ? '01' : '02';
     const ciclo = ciclos.find(c => c.cicloid === cicloid);
     const año = ciclo ? ciclo.año : '';
     const prefix = `${lote.padStart(4, '0')}${idGranja}${idTalla}${formData.diaJuliano}${año}${kilosFormateados}${idProducto}`;
+    console.log('Barcode prefix:', prefix);
+
+    // 5. Identify Barcodes to Delete
     const matchingBarcodes = impresos
       .filter(barcode => barcode.startsWith(prefix))
       .map(barcode => ({ barcode, folio: parseInt(barcode.slice(-4)) }))
@@ -689,10 +704,48 @@ const GeneracionEtiquetas: React.FC = () => {
       toast.error(`No hay suficientes códigos de barras para eliminar. Disponibles: ${matchingBarcodes.length}`);
       return;
     }
-    const deletedBarcodes: string[] = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.barcode);
+const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.barcode);
+    console.log('Deleted barcodes:', deletedBarcodes);
+
+    // 6. Call Backend to Persist Deletion
+    try {
+      if (!token || !user?.id) {
+        toast.error('No estás autenticado. Por favor, inicia sesión.');
+        navigate('/login');
+        return;
+      }
+      const failedBarcodes: string[] = [];
+      for (const barcode of deletedBarcodes) {
+        try {
+          await deleteCajaPorBarcode(barcode,motivo,user.id);
+        } catch (error: any) {
+          if (error.response?.status === 404) {
+            failedBarcodes.push(barcode);
+          } else {
+            throw error; // Rethrow other errors
+          }
+        }
+      }
+      if (failedBarcodes.length > 0) {
+        toast.warn(`No se pudieron eliminar ${failedBarcodes.length} cajas (no encontradas o ya eliminadas).`);
+      }
+      toast.success(`Se eliminaron ${deletedBarcodes.length - failedBarcodes.length} etiquetas en el servidor.`);
+    } catch (error: any) {
+      console.error('Error deleting etiquetas:', error);
+      if (error.response?.status === 401) {
+        logout();
+        toast.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        navigate('/login');
+      } else {
+        toast.error('Error al eliminar etiquetas en el servidor: ' + error.message);
+      }
+      return;
+    }
+
+    // 7. Update DetalleEtiquetas
     let remainingToDelete = cantidadEliminar;
     const newDetalleEtiquetas = [...detalleEtiquetas];
-    for (const entry of matchingEntries) {
+    for (const entry of matchingEntries.sort((a, b) => b.id - a.id)) {
       if (remainingToDelete <= 0) break;
       const entryIndex = newDetalleEtiquetas.findIndex(e => e.id === entry.id);
       if (entryIndex === -1) continue;
@@ -700,14 +753,20 @@ const GeneracionEtiquetas: React.FC = () => {
         remainingToDelete -= newDetalleEtiquetas[entryIndex].cartones;
         newDetalleEtiquetas.splice(entryIndex, 1);
       } else {
-        newDetalleEtiquetas[entryIndex].cartones -= remainingToDelete;
+        newDetalleEtiquetas[entryIndex] = {
+          ...newDetalleEtiquetas[entryIndex],
+          cartones: newDetalleEtiquetas[entryIndex].cartones - remainingToDelete,
+        };
         remainingToDelete = 0;
       }
     }
+
     if (remainingToDelete > 0) {
       toast.error(`Error: No se pudieron eliminar todos los cartones solicitados. Faltan ${remainingToDelete} cartones.`);
       return;
     }
+
+    // 8. Update State
     setDetalleEtiquetas(newDetalleEtiquetas);
     setImpresos(prev => prev.filter(barcode => !deletedBarcodes.includes(barcode)));
     setEliminados(prev => [...prev, ...deletedBarcodes]);
@@ -718,10 +777,24 @@ const GeneracionEtiquetas: React.FC = () => {
       granja: '',
       talla: '',
       producto: '',
+      kilos: 20,
       cantidadEliminar: 0,
       motivo: '',
     });
     toast.success(`Se eliminaron ${cantidadEliminar} etiquetas. Motivo: ${motivo}`);
+
+    // 9. Refresh DetalleEtiquetas and Impresos
+    try {
+      const [detalleEtiquetasData, barcodesData] = await Promise.all([
+        getDetalleEtiquetas(formData.cicloid, formData.lote),
+        getBarcodes(formData.cicloid, formData.lote),
+      ]);
+      setDetalleEtiquetas(detalleEtiquetasData);
+      setImpresos(barcodesData);
+    } catch (err: any) {
+      console.error('Error refreshing data:', err);
+      toast.error('Error al actualizar datos después de la eliminación.');
+    }
   };
 
   const totalPorLoteTallaProducto = detalleEtiquetas.reduce(
@@ -929,6 +1002,16 @@ const GeneracionEtiquetas: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label>Kilos</label>
+                <input
+                  type="number"
+                  value={deleteForm.kilos}
+                  onChange={e => handleDeleteFormChange('kilos', parseInt(e.target.value) || 0)}
+                  className="w-full border px-2 py-1 rounded"
+                  min="0"
+                />
               </div>
               <div>
                 <label>Cantidad a Eliminar</label>

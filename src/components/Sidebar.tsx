@@ -60,6 +60,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
         { id: 'proveedores', label: 'Proveedores', icon: Package2 },
         { id: 'tallas', label: 'Tallas', icon: Ruler },
         { id: 'usuarios', label: 'Usuarios', icon: Settings },
+        { id: 'precio descabece', label: 'TipoPrecioDescabece', icon: Settings },
       ]
     },
     {
@@ -76,6 +77,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
         { id: 'ventas', label: 'Ventas / Salidas', icon: ShoppingCart },
         { id: 'tablero', label: 'Tablero Procesos x Lote', icon: BarChart3 },
         { id: 'trazabilidad', label: 'Trazabilidad x Lotes', icon: Search },
+        { id: 'descabece', label: 'Descabece', icon: Package },
         //{ id: 'temperatura', label: 'Revision Temperatura', icon: Thermometer },
         //{ id: 'enviar-temp', label: 'Enviar Temperaturas Nube', icon: Cloud },
         //{ id: 'etiqueta-gam', label: 'Etiqueta Gam', icon: Tag },

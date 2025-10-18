@@ -83,13 +83,7 @@ export const getCiclos = async (): Promise<Ciclo[]> => {
       .map((c: Ciclo) => ({ ...c, cicloid: Number(c.cicloid) }));
   } catch (error: any) {
     console.error('Error fetching ciclos:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a los ciclos.');
-    } else {
-      throw new Error('Error al obtener los ciclos. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'ciclos');
   }
 };
 
@@ -99,13 +93,7 @@ export const getBodegas = async (): Promise<Bodega[]> => {
     return response.data;
   } catch (error: any) {
     console.error('Error fetching bodegas:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a las bodegas.');
-    } else {
-      throw new Error('Error al obtener las bodegas. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'bodegas');
   }
 };
 
@@ -115,13 +103,7 @@ export const getUbicaciones = async (): Promise<Ubicacion[]> => {
     return response.data;
   } catch (error: any) {
     console.error('Error fetching ubicaciones:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a las ubicaciones.');
-    } else {
-      throw new Error('Error al obtener las ubicaciones. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'ubicaciones');
   }
 };
 
@@ -133,13 +115,7 @@ export const getGranjas = async (): Promise<Granja[]> => {
       .map((g: Granja) => ({ ...g, granjaid: Number(g.granjaid) }));
   } catch (error: any) {
     console.error('Error fetching granjas:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a las granjas.');
-    } else {
-      throw new Error('Error al obtener las granjas. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'granjas');
   }
 };
 
@@ -151,13 +127,7 @@ export const getTallas = async (): Promise<Talla[]> => {
       .map((t: Talla) => ({ ...t, tallaid: Number(t.tallaid) }));
   } catch (error: any) {
     console.error('Error fetching tallas:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a las tallas.');
-    } else {
-      throw new Error('Error al obtener las tallas. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'tallas');
   }
 };
 
@@ -169,36 +139,14 @@ export const getRecepciones = async (cicloid: number, lote: string): Promise<Rec
     );
   } catch (error: any) {
     console.error('Error fetching recepciones:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a las recepciones.');
-    } else if (error.response?.status === 404) {
-      throw new Error('No se encontraron recepciones para el ciclo y lote seleccionados.');
-    } else {
-      throw new Error('Error al obtener las recepciones. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'recepciones');
   }
 };
 
 export const getDetalleEtiquetas = async (cicloid: number, lote: string): Promise<DetalleEtiqueta[]> => {
   try {
     const response = await axios.get(`${API_URL}/empaque/${cicloid}/${lote}`);
-    return response.data
-      .filter(
-        (d: DetalleEtiqueta) =>
-          d.id != null &&
-          d.fecha &&
-          d.diajuliano != null &&
-          d.slote &&
-          d.cicloid != null &&
-          d.tallaid != null &&
-          d.talla &&
-          d.cartones != null &&
-          d.kgs != null &&
-          d.producto
-      )
-      .map((d: DetalleEtiqueta) => {
+    return response.data.map((d: DetalleEtiqueta) => {
         const date = new Date(d.fecha);
         const fechaFormateada = date.toLocaleDateString('es-ES', {
           timeZone: 'America/Mazatlan',
@@ -207,100 +155,87 @@ export const getDetalleEtiquetas = async (cicloid: number, lote: string): Promis
           year: 'numeric',
         });
         return {
-          id: Number(d.id),
+        ...d,
           fecha: fechaFormateada,
-          diajuliano: String(d.diajuliano),
-          slote: String(d.slote),
-          cicloid: Number(d.cicloid),
-          tallaid: Number(d.tallaid),
-          talla: d.talla,
-          cartones: Number(d.cartones),
-          kgs: Number(d.kgs),
-          producto: d.producto,
         };
       });
   } catch (error: any) {
     console.error('Error fetching detalle etiquetas:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a las etiquetas.');
-    } else if (error.response?.status === 404) {
-      throw new Error('No se encontraron registros para el ciclo y lote seleccionados.');
-    } else {
-      throw new Error('Error al obtener las etiquetas. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'etiquetas');
   }
 };
 
 export const getBarcodes = async (cicloid: number, lote: string): Promise<string[]> => {
   try {
     const response = await axios.get(`${API_URL}/empaque/barcode/${cicloid}/${lote}`);
-    let barcodes: string[];
     if (Array.isArray(response.data)) {
-      barcodes = response.data.map((item: { barras: string }) => item.barras);
-    } else if (response.data && typeof response.data === 'object' && 'barras' in response.data) {
-      barcodes = [response.data.barras];
-    } else {
-      barcodes = [];
-      console.warn('Unexpected barcode response format:', response.data);
+      return response.data.map((item: { barras: string }) => item.barras);
     }
-    return barcodes;
+    return [];
   } catch (error: any) {
     console.error('Error fetching barcodes:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para acceder a los códigos de barras.');
-    } else if (error.response?.status === 404) {
-      throw new Error('No se encontraron códigos de barras para el ciclo y lote seleccionados.');
-    } else {
-      throw new Error('Error al obtener los códigos de barras. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'códigos de barras');
   }
 };
 
-export const createEtiquetas = async (payload: {
-  Etiquetas: Array<{
-    folio: string;
-    detalleid: string;
-    Planta: string;
-    Granja: string;
-    Granjaid: string;
-    TipoCamarón: string;
-    Talla: string;
-    Tallaid: string;
-    Lote: string;
-    Empaque: string;
-    DiaJuliano: string;
-    LoteId: string;
-    CicloId: number;
-    C_Antes_De: string;
-    Peso: string;
-    Hora: string;
-    Camarones: string | null;
-    Uniformidad: string;
-    Metabisulfito: string;
-    Bodega: string;
-    Posicion: string;
-    Tarima: string;
-    LeyendaAlergias: string;
-    LeyendaAlimentaria: string;
-    Barras: string;
-    QRContent: string;
-  }>;
-  configuracion: { impresora: string };
-}): Promise<void> => {
+export const createEtiquetas = async (payload: any): Promise<void> => {
   try {
     await axios.post(`${API_URL}/empaque`, payload);
   } catch (error: any) {
     console.error('Error creating etiquetas:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión no autorizada. Por favor, inicia sesión nuevamente.');
-    } else if (error.response?.status === 403) {
-      throw new Error('No tienes permiso para crear etiquetas.');
-    } else {
-      throw new Error('Error al crear las etiquetas. Intenta de nuevo.');
-    }
+    throw handleApiError(error, 'crear etiquetas');
   }
+};
+
+export const deleteCajaPorBarcode = async (
+  codigobarras: string,
+  motivo: string,
+  usuario: number
+): Promise<string> => {
+  try {
+    const response = await axios.post(`${API_URL}/empaque/delete-caja`, {
+      codigobarras,
+      motivo,
+      usuario,
+    });
+    return response.data.message;
+  } catch (error: any) {
+    console.error('Error eliminando caja:', error);
+    throw handleApiError(error, 'eliminar caja');
+  }
+};
+
+// ========================
+// 🆕 NUEVA FUNCIÓN: Consultar bitácora
+// ========================
+export const getBitacora = async (
+  desde?: string,
+  hasta?: string,
+  usuario?: number
+): Promise<any[]> => {
+  try {
+    const params: any = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    if (usuario) params.usuario = usuario;
+
+    const response = await axios.get(`${API_URL}/bitacora`, { params });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching bitacora:', error);
+    throw handleApiError(error, 'bitácora de movimientos');
+  }
+};
+
+// ========================
+// 🔧 Helper para errores
+// ========================
+const handleApiError = (error: any, recurso: string): Error => {
+  if (error.response?.status === 401)
+    return new Error(`Sesión no autorizada. Por favor, inicia sesión nuevamente.`);
+  if (error.response?.status === 403)
+    return new Error(`No tienes permiso para acceder a ${recurso}.`);
+  if (error.response?.status === 404)
+    return new Error(`No se encontraron datos de ${recurso}.`);
+  return new Error(`Error al obtener ${recurso}. Intenta de nuevo.`);
 };
