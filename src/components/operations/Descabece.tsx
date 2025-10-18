@@ -41,6 +41,7 @@ const Pesadas: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPesada, setSelectedPesada] = useState<Pesada | null>(null);
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -96,14 +97,22 @@ const Pesadas: React.FC = () => {
     }
   };
 
+  const handleRowClick = (pesada: Pesada) => {
+    setSelectedPesada(pesada);
+    setLote(pesada.lote.toString());
+    setPrecio(Number(pesada.precio));
+    setEmpleadoId(pesada.noempleado);
+    setEmpleado({ trabajadorid: 0, noempleado: pesada.noempleado, nombre: pesada.nombre });
+    setKilos(Number(pesada.kilos));
+    setShowModal(true);
+  };
+
   const handleGuardar = async () => {
     if (!empleado || !lote || !precio || precio <= 0 || kilos <= 0) {
       setError('Todos los campos son requeridos y deben ser mayores a 0.');
       return;
     }
 
-    const recipientes = Math.floor(kilos / 20);
-    const dif = kilos - recipientes * 20;
     const total = kilos * precio;
     const hora = currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
     const fecha = currentTime.toISOString().split('T')[0];
@@ -112,7 +121,7 @@ const Pesadas: React.FC = () => {
     setError(null);
 
     try {
-      await axios.post('http://localhost:3000/api/pesadas', {
+      const payload = {
         fecha,
         hora,
         noempleado: empleado.noempleado,
@@ -121,12 +130,21 @@ const Pesadas: React.FC = () => {
         precio,
         total,
         lote,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      };
+
+      if (selectedPesada) {
+        await axios.put(`http://localhost:3000/api/pesadas/${selectedPesada.id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await axios.post('http://localhost:3000/api/pesadas', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
       await fetchPesadas();
       setShowModal(false);
       resetInputs();
+      setSelectedPesada(null);
     } catch (err: any) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -137,6 +155,7 @@ const Pesadas: React.FC = () => {
   const handleVolver = () => {
     setShowModal(false);
     resetInputs();
+    setSelectedPesada(null);
   };
 
   const resetInputs = () => {
@@ -191,14 +210,14 @@ const Pesadas: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 bg-white">
+    <div className={`flex flex-col h-screen bg-white ${showModal ? 'overflow-hidden' : ''}`}>
       {error && (
         <div className="bg-red-50 text-red-600 text-sm text-center p-3">
           {error}
         </div>
       )}
 
-      <div className="border-b border-gray-200 bg-blue-50">
+      <div className="border-b border-gray-200 bg-blue-50 flex-shrink-0">
         <div className="flex items-center justify-between p-3">
           <h2 className="text-lg font-medium text-gray-900">Consulta de Pesadas en Tiempo Real</h2>
           <button className="text-gray-500 hover:text-gray-700">
@@ -207,7 +226,8 @@ const Pesadas: React.FC = () => {
         </div>
       </div>
 
-      <div className="overflow-auto mb-6">
+      {/* Tabla con scroll */}
+      <div className="flex-1 overflow-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
@@ -222,7 +242,11 @@ const Pesadas: React.FC = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {pesadas.map((p, index) => (
-              <tr key={p.id}>
+              <tr
+                key={p.id}
+                onClick={() => handleRowClick(p)}
+                className="cursor-pointer hover:bg-gray-100 transition-colors"
+              >
                 <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{p.nombre}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{Number(p.kilos).toFixed(5)}</td>
@@ -236,53 +260,57 @@ const Pesadas: React.FC = () => {
         </table>
       </div>
 
-      <div className="border-t border-gray-200 bg-blue-50 p-3 flex items-center gap-4">
-        <div className="w-1/4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Lote:</label>
-          <input
-            type="text"
-            value={lote}
-            onChange={(e) => setLote(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            placeholder="1"
-          />
+      {/* Inputs y hora fijos abajo */}
+      <div className="border-t border-gray-200 bg-blue-50 sticky bottom-0 z-10 p-3 flex flex-col gap-3">
+        <div className="flex items-center gap-4">
+          <div className="w-1/4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lote:</label>
+            <input
+              type="text"
+              value={lote}
+              onChange={(e) => setLote(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="1"
+            />
+          </div>
+          <div className="w-1/4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Precio:</label>
+            <select
+              value={precio}
+              onChange={(e) => setPrecio(parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              disabled={precios.length === 0}
+            >
+              <option value="">Seleccionar...</option>
+              {precios
+                .filter((p) => p.estatus === 1)
+                .map((p) => (
+                  <option key={p.precioid} value={typeof p.precio === 'number' ? p.precio : parseFloat(p.precio as any)}>
+                    {typeof p.precio === 'number' ? p.precio.toFixed(4) : parseFloat(p.precio as any).toFixed(4)}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="w-1/4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">#</label>
+            <input
+              type="text"
+              value={empleadoId}
+              onChange={(e) => setEmpleadoId(e.target.value)}
+              onKeyDown={handleEmployeeEnter}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="111"
+            />
+          </div>
         </div>
-        <div className="w-1/4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Precio:</label>
-          <select
-            value={precio}
-            onChange={(e) => setPrecio(parseFloat(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            disabled={precios.length === 0}
-          >
-            <option value="">Seleccionar...</option>
-            {precios
-              .filter((p) => p.estatus === 1)
-              .map((p) => (
-                <option key={p.precioid} value={typeof p.precio === 'number' ? p.precio : parseFloat(p.precio as any)}>
-                  {typeof p.precio === 'number' ? p.precio.toFixed(4) : parseFloat(p.precio as any).toFixed(4)}
-                </option>
-              ))}
-          </select>
-        </div>
-        <div className="w-1/4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">#</label>
-          <input
-            type="text"
-            value={empleadoId}
-            onChange={(e) => setEmpleadoId(e.target.value)}
-            onKeyDown={handleEmployeeEnter}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            placeholder="111"
-          />
-        </div>
+
+        <div className="text-center text-red-600 font-bold">{formattedDateTime}</div>
       </div>
 
-      <div className="text-center text-red-600 font-bold p-2">{formattedDateTime}</div>
-
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-1/3 max-w-md overflow-auto max-h-[90vh]">
             <h3 className="text-lg font-medium mb-4">Datos del Empleado</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700">Nombre:</label>
@@ -310,16 +338,14 @@ const Pesadas: React.FC = () => {
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center gap-2"
               >
-                <Save className="w-4 h-4" />
-                Aceptar
+                <Save className="w-4 h-4" /> Aceptar
               </button>
               <button
                 onClick={handleVolver}
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 flex items-center gap-2"
               >
-                <X className="w-4 h-4" />
-                Volver
+                <X className="w-4 h-4" /> Volver
               </button>
             </div>
           </div>
