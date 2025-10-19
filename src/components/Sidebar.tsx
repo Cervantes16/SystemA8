@@ -59,6 +59,8 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
         { id: 'propietarios', label: 'Propietarios', icon: Building },
         /*{ id: 'proveedores', label: 'Proveedores', icon: Package2 },*/
         { id: 'tallas', label: 'Tallas', icon: Ruler },
+        { id: 'puestos', label: 'Puestos', icon: CheckSquare },
+        { id: 'empleados', label: 'Empleados', icon: Settings },
         { id: 'usuarios', label: 'Usuarios', icon: Settings },
         { id: 'precio descabece', label: 'TipoPrecioDescabece', icon: Settings },
       ]
@@ -71,6 +73,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
         { id: 'recepcion', label: 'Recepcion Producto', icon: Package },
         { id: 'descabece', label: 'Descabece', icon: Package },
         { id: 'etiquetas', label: 'Empaque', icon: Tag },
+        { id: 'salidas', label: 'Salidas', icon: Settings },
         //{ id: 'empaque', label: 'Registrar Empaque', icon: Package2 },
         //{ id: 'clasificacion', label: 'Clasificación', icon: Tag },
         { id: 'concentrado', label: 'Generar Concentrado', icon: FileText },

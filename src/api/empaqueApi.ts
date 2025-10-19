@@ -178,9 +178,20 @@ export const getBarcodes = async (cicloid: number, lote: string): Promise<string
   }
 };
 
-export const createEtiquetas = async (payload: any): Promise<void> => {
+export const createEtiquetas = async (payload: any): Promise<{
+  detalleEtiquetas: DetalleEtiqueta[];
+  barcodes: string[];
+  message?: string;
+  warning?: string;
+}> => {
   try {
-    await axios.post(`${API_URL}/empaque`, payload);
+    const response = await axios.post(`${API_URL}/empaque`, payload);
+    return {
+      detalleEtiquetas: response.data.detalleEtiquetas || [],
+      barcodes: response.data.barcodes || [],
+      message: response.data.message,
+      warning: response.data.warning,
+    };
   } catch (error: any) {
     console.error('Error creating etiquetas:', error);
     throw handleApiError(error, 'crear etiquetas');

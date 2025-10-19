@@ -6,7 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface Cliente {
-  idcliente: number;
+  clienteid: number;
   cliente: string;
   rfc: string;
   domicilio: string;
@@ -15,7 +15,7 @@ interface Cliente {
 }
 
 interface FormData {
-  idcliente?: number;
+  clienteid?: number;
   cliente: string;
   rfc: string;
   domicilio: string;
@@ -57,9 +57,9 @@ const Clientes: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (formData.idcliente) {
+      if (formData.clienteid) {
         // Modificar cliente existente
-        await axios.put(`http://localhost:3000/api/clientes/${formData.idcliente}`, formData);
+        await axios.put(`http://localhost:3000/api/clientes/${formData.clienteid}`, formData);
         toast.success('Cliente actualizado');
       } else {
         // Crear nuevo cliente
@@ -88,7 +88,7 @@ const Clientes: React.FC = () => {
     if (selectedRow !== null) {
       const cliente = clientes[selectedRow];
       try {
-        await axios.delete(`http://localhost:3000/api/clientes/${cliente.idcliente}`);
+        await axios.delete(`http://localhost:3000/api/clientes/${cliente.clienteid}`);
         toast.success('Cliente eliminado');
         fetchClientes();
         setSelectedRow(null);
@@ -104,7 +104,7 @@ const Clientes: React.FC = () => {
       <div className="flex-1 bg-white p-6">
         <div className="border-b border-gray-200 bg-blue-50 flex justify-between items-center p-3">
           <h2 className="text-lg font-medium text-gray-900">
-            {formData.idcliente ? 'Modificar Cliente' : 'Nuevo Cliente'}
+            {formData.clienteid ? 'Modificar Cliente' : 'Nuevo Cliente'}
           </h2>
           <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
             <X className="w-5 h-5" />
@@ -219,13 +219,13 @@ const Clientes: React.FC = () => {
           <tbody>
             {clientes.map((cliente, index) => (
               <tr
-                key={cliente.idcliente}
+                key={cliente.clienteid}
                 onClick={() => setSelectedRow(index)}
                 className={`cursor-pointer ${
                   selectedRow === index ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <td className="px-4 py-2">{cliente.idcliente}</td>
+                <td className="px-4 py-2">{cliente.clienteid}</td>
                 <td className="px-4 py-2">{cliente.cliente}</td>
                 <td className="px-4 py-2">{cliente.rfc}</td>
                 <td className="px-4 py-2">{cliente.domicilio}</td>

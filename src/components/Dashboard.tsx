@@ -20,6 +20,9 @@ import Proveedores from './catalogs/Proveedores';
 import ErrorBoundary from './ErrorBoundary';
 import TiposPreciosDescabece from './catalogs/TiposPreciosDescabece';
 import Descabece from './operations/Descabece'; 
+import Puestos from './catalogs/Puestos';
+import Trabajadores from './catalogs/Trabajadores';
+import Salidas from './operations/Salidas';
 
 export default function Dashboard() {
   const { userPermissions } = useAuth();
@@ -44,6 +47,8 @@ export default function Dashboard() {
     //empaque: 'RegistrarEmpaque',
     //empaque: 'Empaque',
     //etiquetas: 'GeneracionEtiquetas',
+    puestos: 'Puestos',
+    empleados: 'Empleados',
     etiquetas: 'GenerarEtiquetas',
   };
 
@@ -111,6 +116,12 @@ export default function Dashboard() {
         return <RecepcionProducto />;
       case 'clasificacion':
         return <Clasificacion />;
+      case 'puestos':
+        return <Puestos />;
+      case 'empleados':
+        return <Trabajadores />;
+      case 'salidas':
+        return <Salidas />;
       case 'precio descabece':
         return <TiposPreciosDescabece />;
       //case 'empaque':

@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Navigate } from 'react-router-dom';
-import axios from 'axios';
+//import axios from 'axios';
 import {
   getCiclos,
   getBodegas,
@@ -280,6 +280,9 @@ const GeneracionEtiquetas: React.FC = () => {
             getDetalleEtiquetas(formData.cicloid, formData.lote),
             getBarcodes(formData.cicloid, formData.lote),
           ]);
+          console.log('Fetched recepciones:', recepcionesData);
+          console.log('Fetched detalleEtiquetas:', detalleEtiquetasData);
+          console.log('Fetched barcodes:', barcodesData);
           setRecepciones(recepcionesData);
           setDetalleEtiquetas(detalleEtiquetasData);
           setImpresos(barcodesData);
@@ -295,7 +298,7 @@ const GeneracionEtiquetas: React.FC = () => {
               const fechaFormateada = fechaLocal.toISOString().split('T')[0];
               setFormData(prev => ({ ...prev, fechaEmpaque: fechaFormateada }));
             } else {
-              console.error("⚠️ Fecha inválida:", rawFecha);
+              console.error('⚠️ Fecha inválida:', rawFecha);
             }
           }
           const granjaIds = Array.from(new Set(recepcionesData.map((r: Recepcion) => Number(r.granjaid))));
@@ -397,7 +400,7 @@ const GeneracionEtiquetas: React.FC = () => {
 
   const codigos = useMemo(() => {
     if (formData.talla <= 0 || tallas.length === 0) return [];
-    return Array.from({ length: formData.numeroCartones }, (_, i) => {
+    const codes = Array.from({ length: formData.numeroCartones }, (_, i) => {
       const idGranja = String(formData.granja).padStart(3, '0');
       const idTalla = String(formData.talla).padStart(2, '0');
       const startFolio = getNextFolio(
@@ -418,6 +421,8 @@ const GeneracionEtiquetas: React.FC = () => {
       const qrContent = `Planta: ${formData.nombrePlanta}, Granja: ${granjas.find(g => g.granjaid === formData.granja)?.granja || ''}, Talla: ${tallas.find(t => t.tallaid === formData.talla)?.talla || ''}, Lote: ${formData.lote}, Ciclo: ${cicloDisplay}, Camarones: ${formData.camarones}, Pres.: ${formData.presentacionKgs}, DiaJuliano: ${formData.diaJuliano}, Producto: ${formData.producto === 'S/CABEZA' ? 'S/CABEZA' : 'C/CABEZA'}, Uniformidad: ${parseFloat(formData.uniformidad).toFixed(2)}, Barras: ${barcode}`;
       return { barcode, qrContent };
     });
+    console.log('Generated codigos:', codes);
+    return codes;
   }, [
     formData.talla,
     formData.numeroCartones,
@@ -565,17 +570,6 @@ const GeneracionEtiquetas: React.FC = () => {
 
     const ciclo = ciclos.find(c => c.cicloid === formData.cicloid);
     const cicloDisplay = ciclo ? `${ciclo.año}-${ciclo.ciclo}` : '';
-    const matchingEntry = detalleEtiquetas.find(
-      detalle =>
-        detalle.fecha === fechaFormateada &&
-        detalle.slote === formData.lote &&
-        detalle.tallaid === formData.talla &&
-        detalle.producto === formData.producto &&
-        detalle.kgs === parseFloat(formData.presentacionKgs) &&
-        detalle.diajuliano === formData.diaJuliano
-    );
-    const detalleid = matchingEntry ? matchingEntry.id : detalleEtiquetas.length + 1;
-
     const jsonEtiquetas = codigos.map(codigo => {
       const fechaCaduca = new Date(fechaLocal);
       fechaCaduca.setFullYear(fechaCaduca.getFullYear() + 2);
@@ -584,7 +578,7 @@ const GeneracionEtiquetas: React.FC = () => {
       const leyendaAlimentaria = 'El consumo crudo o poco cocido puede incrementar el riesgo de adquirir una enfermedad alimentaria.';
       return {
         folio,
-        detalleid: String(detalleid),
+        detalleid: String(detalleEtiquetas.length + 1), // Temporary ID, will be updated by server
         Planta: formData.nombrePlanta,
         Granja: granjas.find(g => g.granjaid === formData.granja)?.granja || '',
         Granjaid: String(formData.granja),
@@ -618,32 +612,43 @@ const GeneracionEtiquetas: React.FC = () => {
     };
 
     try {
-      await createEtiquetas(payload);
-      setImpresos(prev => [...prev, ...codigos.map(c => c.barcode)]);
-      if (matchingEntry) {
-        setDetalleEtiquetas(prev =>
-          prev.map(detalle =>
-            detalle.id === matchingEntry.id
-              ? { ...detalle, cartones: detalle.cartones + formData.numeroCartones }
-              : detalle
-          )
-        );
+      const response = await createEtiquetas(payload);
+      console.log('Server response:', response);
+      // Update state with server data
+      setDetalleEtiquetas(response.detalleEtiquetas || []);
+      setImpresos(response.barcodes || []);
+      if (response.warning) {
+        toast.warn(`${response.message} Advertencia: ${response.warning}`);
       } else {
-        const nuevaEntrada: DetalleEtiqueta = {
-          id: detalleid,
-          fecha: fechaFormateada,
-          diajuliano: formData.diaJuliano,
-          slote: formData.lote,
-          cicloid: formData.cicloid,
-          tallaid: formData.talla,
-          talla: selectedTalla.talla,
-          cartones: formData.numeroCartones,
-          kgs: parseFloat(formData.presentacionKgs),
-          producto: formData.producto,
-        };
-        setDetalleEtiquetas(prev => [...prev, nuevaEntrada]);
+        toast.success(`Se imprimirán ${formData.numeroCartones} etiquetas, para un total de ${formData.numeroCartones} cartones.`);
       }
-      toast.success(`Se imprimirán ${formData.numeroCartones} etiquetas, para un total de ${formData.numeroCartones} cartones.`);
+
+      // Clear form to prevent duplicate submissions
+      setFormData({
+        fechaEmpaque: new Date().toISOString().split('T')[0],
+        diaJuliano: '',
+        lote: formData.lote,
+        cicloid: formData.cicloid,
+        granja: 0,
+        talla: 0,
+        camarones: '',
+        presentacionKgs: '',
+        presentacionLbs: '',
+        producto: 'S/CABEZA',
+        uniformidad: '',
+        metabisulfato: true,
+        horaEmpaque: '',
+        nombrePlanta: 'PLANTA LAS AGUILAS',
+        zDesigner: 'PDF',
+        numeroCartones: 1,
+        bodega: 0,
+        bahia: '',
+        seccion: '',
+        fondo: '',
+        piso: '',
+        posicion: '',
+        tarima: '',
+      });
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
@@ -669,13 +674,14 @@ const GeneracionEtiquetas: React.FC = () => {
     }
 
     // 3. Find Matching Etiquetas
-    const matchingEntries = detalleEtiquetas.filter(detalle =>
-      Number(detalle.slote) === Number(lote) &&
-      Number(detalle.cicloid) === Number(cicloid) &&
-      Number(detalle.tallaid) === Number(selectedTalla.tallaid) &&
-      detalle.producto === producto &&
-      Number(detalle.kgs) === Number(kilos) &&
-      Number(detalle.diajuliano) === Number(formData.diaJuliano)
+    const matchingEntries = detalleEtiquetas.filter(
+      detalle =>
+        Number(detalle.slote) === Number(lote) &&
+        Number(detalle.cicloid) === Number(cicloid) &&
+        Number(detalle.tallaid) === Number(selectedTalla.tallaid) &&
+        detalle.producto === producto &&
+        Number(detalle.kgs) === Number(kilos) &&
+        Number(detalle.diajuliano) === Number(formData.diaJuliano)
     );
     const totalAvailableCartons = matchingEntries.reduce((sum, entry) => sum + entry.cartones, 0);
     console.log('Matching entries:', matchingEntries, 'Total cartons:', totalAvailableCartons);
@@ -704,7 +710,7 @@ const GeneracionEtiquetas: React.FC = () => {
       toast.error(`No hay suficientes códigos de barras para eliminar. Disponibles: ${matchingBarcodes.length}`);
       return;
     }
-const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.barcode);
+    const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.barcode);
     console.log('Deleted barcodes:', deletedBarcodes);
 
     // 6. Call Backend to Persist Deletion
@@ -717,7 +723,7 @@ const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.b
       const failedBarcodes: string[] = [];
       for (const barcode of deletedBarcodes) {
         try {
-          await deleteCajaPorBarcode(barcode,motivo,user.id);
+          await deleteCajaPorBarcode(barcode, motivo, user.id);
         } catch (error: any) {
           if (error.response?.status === 404) {
             failedBarcodes.push(barcode);
@@ -730,6 +736,33 @@ const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.b
         toast.warn(`No se pudieron eliminar ${failedBarcodes.length} cajas (no encontradas o ya eliminadas).`);
       }
       toast.success(`Se eliminaron ${deletedBarcodes.length - failedBarcodes.length} etiquetas en el servidor.`);
+
+      // Refresh data from server
+      try {
+        const [detalleEtiquetasData, barcodesData] = await Promise.all([
+          getDetalleEtiquetas(formData.cicloid, formData.lote),
+          getBarcodes(formData.cicloid, formData.lote),
+        ]);
+        console.log('Refreshed detalleEtiquetas after delete:', detalleEtiquetasData);
+        console.log('Refreshed barcodes after delete:', barcodesData);
+        setDetalleEtiquetas(detalleEtiquetasData);
+        setImpresos(barcodesData);
+      } catch (err: any) {
+        console.error('Error refreshing data:', err);
+        toast.error('Error al actualizar datos después de la eliminación.');
+      }
+
+      setShowDeleteModal(false);
+      setDeleteForm({
+        lote: '',
+        cicloid: ciclos[ciclos.length - 1]?.cicloid || 0,
+        granja: '',
+        talla: '',
+        producto: '',
+        kilos: 20,
+        cantidadEliminar: 0,
+        motivo: '',
+      });
     } catch (error: any) {
       console.error('Error deleting etiquetas:', error);
       if (error.response?.status === 401) {
@@ -739,61 +772,6 @@ const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.b
       } else {
         toast.error('Error al eliminar etiquetas en el servidor: ' + error.message);
       }
-      return;
-    }
-
-    // 7. Update DetalleEtiquetas
-    let remainingToDelete = cantidadEliminar;
-    const newDetalleEtiquetas = [...detalleEtiquetas];
-    for (const entry of matchingEntries.sort((a, b) => b.id - a.id)) {
-      if (remainingToDelete <= 0) break;
-      const entryIndex = newDetalleEtiquetas.findIndex(e => e.id === entry.id);
-      if (entryIndex === -1) continue;
-      if (newDetalleEtiquetas[entryIndex].cartones <= remainingToDelete) {
-        remainingToDelete -= newDetalleEtiquetas[entryIndex].cartones;
-        newDetalleEtiquetas.splice(entryIndex, 1);
-      } else {
-        newDetalleEtiquetas[entryIndex] = {
-          ...newDetalleEtiquetas[entryIndex],
-          cartones: newDetalleEtiquetas[entryIndex].cartones - remainingToDelete,
-        };
-        remainingToDelete = 0;
-      }
-    }
-
-    if (remainingToDelete > 0) {
-      toast.error(`Error: No se pudieron eliminar todos los cartones solicitados. Faltan ${remainingToDelete} cartones.`);
-      return;
-    }
-
-    // 8. Update State
-    setDetalleEtiquetas(newDetalleEtiquetas);
-    setImpresos(prev => prev.filter(barcode => !deletedBarcodes.includes(barcode)));
-    setEliminados(prev => [...prev, ...deletedBarcodes]);
-    setShowDeleteModal(false);
-    setDeleteForm({
-      lote: '',
-      cicloid: ciclos[ciclos.length - 1]?.cicloid || 0,
-      granja: '',
-      talla: '',
-      producto: '',
-      kilos: 20,
-      cantidadEliminar: 0,
-      motivo: '',
-    });
-    toast.success(`Se eliminaron ${cantidadEliminar} etiquetas. Motivo: ${motivo}`);
-
-    // 9. Refresh DetalleEtiquetas and Impresos
-    try {
-      const [detalleEtiquetasData, barcodesData] = await Promise.all([
-        getDetalleEtiquetas(formData.cicloid, formData.lote),
-        getBarcodes(formData.cicloid, formData.lote),
-      ]);
-      setDetalleEtiquetas(detalleEtiquetasData);
-      setImpresos(barcodesData);
-    } catch (err: any) {
-      console.error('Error refreshing data:', err);
-      toast.error('Error al actualizar datos después de la eliminación.');
     }
   };
 
@@ -1287,7 +1265,7 @@ const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.b
           <div className="bg-white p-4 rounded shadow border max-h-[400px] overflow-y-auto mt-4">
             <h2 className="text-lg font-semibold">Vista previa</h2>
             <div className="space-y-6">
-              
+
               {codigos.map(c => c.barcode).join(", ")}
               {/*{codigos.length > 0 ? (
                 codigos.map((codigo, idx) => (
@@ -1385,11 +1363,11 @@ const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.b
             </button>
             <button
               onClick={() => {
-                setFormData(prev => ({
-                  ...prev,
+                setFormData({
                   fechaEmpaque: new Date().toISOString().split('T')[0],
                   diaJuliano: '',
                   lote: '',
+                  cicloid: ciclos[ciclos.length - 1]?.cicloid || 0,
                   granja: 0,
                   talla: 0,
                   camarones: '',
@@ -1409,7 +1387,7 @@ const deletedBarcodes = matchingBarcodes.slice(0, cantidadEliminar).map(b => b.b
                   piso: '',
                   posicion: '',
                   tarima: '',
-                }));
+                });
                 setError(null);
                 setDetalleEtiquetas([]);
                 setImpresos([]);
