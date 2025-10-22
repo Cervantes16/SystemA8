@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
-import DataTable from './DataTable';
+//import DataTable from './DataTable';
 import RecepcionProducto from './operations/RecepcionProducto';
 import Clasificacion from './operations/Clasificacion';
-import Empaque from './operations/Empaque';
+//import Empaque from './operations/Empaque';
 import GeneracionEtiquetas from './operations/GeneracionEtiquetas';
 import Bodegas from './catalogs/Bodega';
 import Transportes from './catalogs/Transportes';
@@ -17,7 +17,13 @@ import Granjas from './catalogs/Granjas';
 import Productos from './catalogs/Productos';
 import Propietarios from './catalogs/Propietarios';
 import Proveedores from './catalogs/Proveedores';
-import Pesadas from './catalogs/Pesadas';
+import ErrorBoundary from './ErrorBoundary';
+import TiposPreciosDescabece from './catalogs/TiposPreciosDescabece';
+import Descabece from './operations/Descabece'; 
+import Puestos from './catalogs/Puestos';
+import Trabajadores from './catalogs/Trabajadores';
+import Salidas from './operations/Salidas';
+import Solicitudes from './operations/solicitudes';
 
 export default function Dashboard() {
   const { userPermissions } = useAuth();
@@ -36,11 +42,15 @@ export default function Dashboard() {
     productos: 'Productos',
     propietarios: 'Propietarios',
     proveedores: 'Proveedores',
-    recepcion: 'Recepcion',
+    //recepcion: 'Recepcion',
+    recepcion:'RecepcionProducto',
     clasificacion: 'Clasificacion',
-    empaque: 'Empaque',
-    etiquetas: 'GeneracionEtiquetas',
-    pesadas:'Pesadas',
+    //empaque: 'RegistrarEmpaque',
+    //empaque: 'Empaque',
+    //etiquetas: 'GeneracionEtiquetas',
+    puestos: 'Puestos',
+    empleados: 'Empleados',
+    etiquetas: 'GenerarEtiquetas',
   };
 
   // Check if user has permission for the active section
@@ -101,18 +111,30 @@ export default function Dashboard() {
         return <Propietarios />;
       case 'proveedores':
         return <Proveedores />;
+      case 'recepcionproducto':
+        return <RecepcionProducto />;
       case 'recepcion':
         return <RecepcionProducto />;
       case 'clasificacion':
         return <Clasificacion />;
-      case 'empaque':
-        return <Empaque />;
+      case 'puestos':
+        return <Puestos />;
+      case 'empleados':
+        return <Trabajadores />;
+      case 'salidas':
+        return <Salidas />;
+      case 'solicitudes':
+        return <Solicitudes />;
+      case 'precio descabece':
+        return <TiposPreciosDescabece />;
+      //case 'empaque':
+      //  return <Empaque />;
       case 'etiquetas':
-        return <GeneracionEtiquetas />;
-      case 'pesadas':
-        return <Pesadas />;
-
-        
+        return <ErrorBoundary>
+                 <GeneracionEtiquetas />
+               </ErrorBoundary>;
+      case 'descabece':
+        return <Descabece />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center bg-gray-50">

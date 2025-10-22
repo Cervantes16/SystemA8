@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { User, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, error: authError } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,11 +20,17 @@ export default function Login() {
       return;
     }
 
-    const success = await login(username, password);
-    if (success) {
-      navigate('/dashboard');
-    } else {
-      setError('Credenciales inválidas');
+    try {
+      const success = await login(username, password);
+      if (success) {
+        console.log('Login successful, redirecting to:', location.state?.from?.pathname || '/dashboard');
+        navigate(location.state?.from?.pathname || '/dashboard', { replace: true });
+      } else {
+        setError('Credenciales inválidas');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError('Error al iniciar sesión. Por favor, intenta de nuevo.');
     }
   };
 
@@ -51,6 +58,7 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ingrese su usuario"
+                autoComplete="username"
               />
             </div>
           </div>
@@ -67,13 +75,14 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Ingrese su contraseña"
+                autoComplete="current-password"
               />
             </div>
           </div>
 
-          {error && (
+          {(error || authError) && (
             <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-md">
-              {error}
+              {error || authError}
             </div>
           )}
 
