@@ -74,6 +74,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
         { id: 'descabece', label: 'Descabece', icon: Package },
         { id: 'etiquetas', label: 'Empaque', icon: Tag },
         { id: 'salidas', label: 'Salidas', icon: Settings },
+        { id: 'solicitudes', label: 'Solicitudes', icon: Settings },
         //{ id: 'empaque', label: 'Registrar Empaque', icon: Package2 },
         //{ id: 'clasificacion', label: 'Clasificación', icon: Tag },
         { id: 'concentrado', label: 'Generar Concentrado', icon: FileText },
